@@ -1,0 +1,653 @@
+export default {
+  editor: {
+    label: {
+      en: "Vueflow Canvas Element",
+    },
+    icon: "fontawesome/solid/project-diagram",
+  },
+  properties: {
+    // ========================================
+    // CANVAS SETTINGS
+    // ========================================
+    
+    initialNodes: {
+      label: { en: 'Initial Nodes' },
+      type: 'Array',
+      section: 'settings',
+      bindable: true,
+      defaultValue: [
+        {
+          id: 'node-1',
+          type: 'default',
+          position: { x: 250, y: 100 },
+          data: { label: 'Start Node', description: 'This is the starting point' }
+        },
+        {
+          id: 'node-2',
+          type: 'default',
+          position: { x: 250, y: 250 },
+          data: { label: 'Process Node', description: 'Processing data' }
+        },
+        {
+          id: 'node-3',
+          type: 'default',
+          position: { x: 250, y: 400 },
+          data: { label: 'End Node', description: 'Final result' }
+        }
+      ],
+      options: {
+        expandable: true,
+        getItemLabel(item) {
+          return item?.data?.label || item?.data?.title || `Node ${item?.id || 'Unknown'}`;
+        },
+        item: {
+          type: 'Object',
+          defaultValue: {
+            id: 'new-node',
+            type: 'default',
+            position: { x: 100, y: 100 },
+            data: { label: 'New Node', description: '' }
+          },
+          options: {
+            item: {
+              id: {
+                label: { en: 'Node ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Unique identifier for the node'
+                },
+                /* wwEditor:end */
+              },
+              type: {
+                label: { en: 'Node Type' },
+                type: 'Text',
+                defaultValue: 'default',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Type of node (default, input, output, process)'
+                },
+                /* wwEditor:end */
+              },
+              position: {
+                label: { en: 'Position' },
+                type: 'Object',
+                defaultValue: { x: 100, y: 100 },
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'object',
+                  tooltip: 'Position object with x and y coordinates'
+                },
+                /* wwEditor:end */
+              },
+              data: {
+                label: { en: 'Node Data' },
+                type: 'Object',
+                defaultValue: { label: 'Node', description: '' },
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'object',
+                  tooltip: 'Custom data for the node (label, description, etc.)'
+                },
+                /* wwEditor:end */
+              }
+            }
+          }
+        }
+      },
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of node objects with id, type, position, and data'
+      },
+      propertyHelp: 'Define the initial nodes to display on the canvas. Each node should have an id, type, position {x, y}, and data {label, description}.'
+      /* wwEditor:end */
+    },
+
+    initialEdges: {
+      label: { en: 'Initial Edges' },
+      type: 'Array',
+      section: 'settings',
+      bindable: true,
+      defaultValue: [
+        {
+          id: 'edge-1',
+          source: 'node-1',
+          target: 'node-2',
+          sourceHandle: 'bottom',
+          targetHandle: 'top'
+        },
+        {
+          id: 'edge-2',
+          source: 'node-2',
+          target: 'node-3',
+          sourceHandle: 'bottom',
+          targetHandle: 'top'
+        }
+      ],
+      options: {
+        expandable: true,
+        getItemLabel(item) {
+          return `${item?.source || '?'} → ${item?.target || '?'}`;
+        },
+        item: {
+          type: 'Object',
+          defaultValue: {
+            id: 'new-edge',
+            source: '',
+            target: '',
+            sourceHandle: 'bottom',
+            targetHandle: 'top'
+          },
+          options: {
+            item: {
+              id: {
+                label: { en: 'Edge ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Unique identifier for the edge'
+                },
+                /* wwEditor:end */
+              },
+              source: {
+                label: { en: 'Source Node ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'ID of the source node'
+                },
+                /* wwEditor:end */
+              },
+              target: {
+                label: { en: 'Target Node ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'ID of the target node'
+                },
+                /* wwEditor:end */
+              },
+              sourceHandle: {
+                label: { en: 'Source Handle' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'top', label: 'Top' },
+                    { value: 'bottom', label: 'Bottom' },
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' }
+                  ]
+                },
+                defaultValue: 'bottom',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Handle position on source node'
+                },
+                /* wwEditor:end */
+              },
+              targetHandle: {
+                label: { en: 'Target Handle' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'top', label: 'Top' },
+                    { value: 'bottom', label: 'Bottom' },
+                    { value: 'left', label: 'Left' },
+                    { value: 'right', label: 'Right' }
+                  ]
+                },
+                defaultValue: 'top',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Handle position on target node'
+                },
+                /* wwEditor:end */
+              }
+            }
+          }
+        }
+      },
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of edge objects connecting nodes'
+      },
+      propertyHelp: 'Define the initial edges (connections) between nodes. Each edge should have an id, source node id, and target node id.'
+      /* wwEditor:end */
+    },
+
+    // ========================================
+    // CANVAS BEHAVIOR
+    // ========================================
+
+    gridEnabled: {
+      label: { en: 'Show Grid' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Toggle grid visibility'
+      },
+      propertyHelp: 'Enable or disable the background grid on the canvas'
+      /* wwEditor:end */
+    },
+
+    zoomEnabled: {
+      label: { en: 'Enable Zoom/Pan' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Enable zoom and pan interactions'
+      },
+      propertyHelp: 'Allow users to zoom (mouse wheel) and pan (drag canvas) the view'
+      /* wwEditor:end */
+    },
+
+    minZoom: {
+      label: { en: 'Minimum Zoom' },
+      type: 'Number',
+      section: 'settings',
+      defaultValue: 0.1,
+      min: 0.05,
+      max: 1,
+      step: 0.05,
+      bindable: true,
+      hidden: content => !content?.zoomEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'number',
+        tooltip: 'Minimum zoom level (0.05 - 1.0)'
+      },
+      /* wwEditor:end */
+    },
+
+    maxZoom: {
+      label: { en: 'Maximum Zoom' },
+      type: 'Number',
+      section: 'settings',
+      defaultValue: 2,
+      min: 1,
+      max: 5,
+      step: 0.1,
+      bindable: true,
+      hidden: content => !content?.zoomEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'number',
+        tooltip: 'Maximum zoom level (1.0 - 5.0)'
+      },
+      /* wwEditor:end */
+    },
+
+    snapToGrid: {
+      label: { en: 'Snap to Grid' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: false,
+      bindable: true,
+      hidden: content => !content?.gridEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Snap nodes to grid when dragging'
+      },
+      propertyHelp: 'When enabled, nodes will snap to grid intersections when moved'
+      /* wwEditor:end */
+    },
+
+    connectableNodes: {
+      label: { en: 'Connectable Nodes' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Allow creating connections between nodes'
+      },
+      propertyHelp: 'Enable node handles for creating connections between nodes'
+      /* wwEditor:end */
+    },
+
+    deletableNodes: {
+      label: { en: 'Deletable Nodes' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Show delete button on nodes'
+      },
+      propertyHelp: 'Display a delete button on each node for quick removal'
+      /* wwEditor:end */
+    },
+
+    edgePathType: {
+      label: { en: 'Edge Path Type' },
+      type: 'TextSelect',
+      section: 'settings',
+      options: {
+        options: [
+          { value: 'bezier', label: 'Bezier (Curved)' },
+          { value: 'straight', label: 'Straight' }
+        ]
+      },
+      defaultValue: 'bezier',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: bezier | straight'
+      },
+      propertyHelp: 'Choose the visual style for edges connecting nodes'
+      /* wwEditor:end */
+    },
+
+    // ========================================
+    // DROPZONE SETTINGS
+    // ========================================
+
+    dropZoneEnabled: {
+      label: { en: 'Enable Drop Zone' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Show drop zone control area'
+      },
+      propertyHelp: 'Display a drop zone area for canvas controls and custom actions'
+      /* wwEditor:end */
+    },
+
+    dropZoneContent: {
+      hidden: true,
+      defaultValue: [],
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of elements to display in dropzone'
+      },
+      /* wwEditor:end */
+    },
+
+    dropZoneHeight: {
+      label: { en: 'Drop Zone Height' },
+      type: 'Length',
+      section: 'style',
+      defaultValue: '80px',
+      bindable: true,
+      hidden: content => !content?.dropZoneEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'CSS height value'
+      },
+      /* wwEditor:end */
+    },
+
+    dropZoneBackground: {
+      label: { en: 'Drop Zone Background' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#f5f5f5',
+      bindable: true,
+      hidden: content => !content?.dropZoneEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Background color for drop zone'
+      },
+      /* wwEditor:end */
+    },
+
+    // ========================================
+    // CANVAS STYLING
+    // ========================================
+
+    backgroundColor: {
+      label: { en: 'Canvas Background' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#ffffff',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Background color of the canvas'
+      },
+      /* wwEditor:end */
+    },
+
+    gridColor: {
+      label: { en: 'Grid Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#e0e0e0',
+      bindable: true,
+      hidden: content => !content?.gridEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Color of grid lines'
+      },
+      /* wwEditor:end */
+    },
+
+    // ========================================
+    // NODE STYLING
+    // ========================================
+
+    nodeBackgroundColor: {
+      label: { en: 'Node Background' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#f9f9f9',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Background color of nodes'
+      },
+      /* wwEditor:end */
+    },
+
+    nodeBorderColor: {
+      label: { en: 'Node Border' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#d0d0d0',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Border color of nodes'
+      },
+      /* wwEditor:end */
+    },
+
+    selectedNodeColor: {
+      label: { en: 'Selected Node Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#007aff',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Highlight color for selected nodes'
+      },
+      /* wwEditor:end */
+    },
+
+    handleColor: {
+      label: { en: 'Handle Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#007aff',
+      bindable: true,
+      hidden: content => !content?.connectableNodes,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Color of connection handles'
+      },
+      /* wwEditor:end */
+    },
+
+    // ========================================
+    // EDGE STYLING
+    // ========================================
+
+    edgeColor: {
+      label: { en: 'Edge Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#999999',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Color of edges connecting nodes'
+      },
+      /* wwEditor:end */
+    },
+
+    selectedEdgeColor: {
+      label: { en: 'Selected Edge Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#007aff',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Color of selected edges'
+      },
+      /* wwEditor:end */
+    },
+  },
+
+  // ========================================
+  // TRIGGER EVENTS
+  // ========================================
+  
+  triggerEvents: [
+    {
+      name: 'node-added',
+      label: { en: 'On Node Added' },
+      event: { node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a new node is added to the canvas'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-removed',
+      label: { en: 'On Node Removed' },
+      event: { nodeId: '' },
+      /* wwEditor:start */
+      description: 'Triggered when a node is removed from the canvas'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-updated',
+      label: { en: 'On Node Updated' },
+      event: { nodeId: '', data: {} },
+      /* wwEditor:start */
+      description: 'Triggered when node data is updated'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-selected',
+      label: { en: 'On Node Selected' },
+      event: { nodeId: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a node is clicked and selected'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-moved',
+      label: { en: 'On Node Moved' },
+      event: { nodeId: '', position: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a node is moved to a new position'
+      /* wwEditor:end */
+    },
+    {
+      name: 'edge-added',
+      label: { en: 'On Edge Added' },
+      event: { edge: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a new edge is created'
+      /* wwEditor:end */
+    },
+    {
+      name: 'edge-removed',
+      label: { en: 'On Edge Removed' },
+      event: { edgeId: '' },
+      /* wwEditor:start */
+      description: 'Triggered when an edge is removed'
+      /* wwEditor:end */
+    },
+    {
+      name: 'edge-selected',
+      label: { en: 'On Edge Selected' },
+      event: { edgeId: '', edge: {} },
+      /* wwEditor:start */
+      description: 'Triggered when an edge is clicked and selected'
+      /* wwEditor:end */
+    },
+    {
+      name: 'connection-made',
+      label: { en: 'On Connection Made' },
+      event: { edge: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a new connection is made between nodes'
+      /* wwEditor:end */
+    },
+    {
+      name: 'zoom-changed',
+      label: { en: 'On Zoom Changed' },
+      event: { zoom: 1, percentage: 100 },
+      /* wwEditor:start */
+      description: 'Triggered when the zoom level changes'
+      /* wwEditor:end */
+    },
+    {
+      name: 'fit-view',
+      label: { en: 'On Fit View' },
+      event: { zoom: 1 },
+      /* wwEditor:start */
+      description: 'Triggered when fit view is executed'
+      /* wwEditor:end */
+    },
+    {
+      name: 'reset-view',
+      label: { en: 'On Reset View' },
+      event: {},
+      /* wwEditor:start */
+      description: 'Triggered when view is reset to default'
+      /* wwEditor:end */
+    }
+  ]
+};
