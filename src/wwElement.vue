@@ -8,7 +8,7 @@
     @mouseup="handleCanvasMouseUp"
     @wheel="handleWheel"
   >
-    <!-- Background Grid -->
+    <!-- #region Background Grid -->
     <svg 
       v-if="content?.gridEnabled"
       class="canvas-grid"
@@ -32,13 +32,14 @@
       </defs>
       <rect width="100%" height="100%" fill="url(#grid-pattern)" />
     </svg>
+    <!-- #endregion -->
 
-    <!-- Canvas Content -->
+    <!-- #region Canvas Content -->
     <div 
       class="canvas-viewport"
       :style="viewportStyle"
     >
-      <!-- SVG Layer for Edges -->
+      <!-- #region Edges Layer -->
       <svg class="edges-layer">
         <!-- Active Connection Preview -->
         <path
@@ -74,8 +75,9 @@
           />
         </g>
       </svg>
+      <!-- #endregion -->
 
-      <!-- Nodes Layer -->
+      <!-- #region Nodes Layer -->
       <div
         v-for="node in nodes"
         :key="node.id"
@@ -116,9 +118,11 @@
           </div>
         </div>
       </div>
+      <!-- #endregion -->
     </div>
+    <!-- #endregion -->
 
-    <!-- Drop Zone Control Area -->
+    <!-- #region Drop Zone Control -->
     <div 
       v-if="content?.dropZoneEnabled"
       class="dropzone-control"
@@ -169,6 +173,7 @@
         </button>
       </div>
     </div>
+    <!-- #endregion -->
   </div>
 </template>
 
@@ -187,14 +192,11 @@ export default {
     'trigger-event': null
   },
   setup(props, { emit }) {
-    // ========================================
-    // REFS
-    // ========================================
+    //#region DOM References
     const canvasContainer = ref(null);
+    //#endregion
 
-    // ========================================
-    // INTERNAL VARIABLES (wwLib Component Variables)
-    // ========================================
+    //#region Internal Variables
     
     // Nodes state
     const { value: nodes, setValue: setNodes } = wwLib.wwVariable.useComponentVariable({
@@ -251,10 +253,9 @@ export default {
       type: 'number',
       defaultValue: 100,
     });
+    //#endregion
 
-    // ========================================
-    // LOCAL STATE (UI-only, non-exposed)
-    // ========================================
+    //#region Local State
     const draggingNodeId = ref(null);
     const dragOffset = ref({ x: 0, y: 0 });
     const isPanning = ref(false);
@@ -265,11 +266,9 @@ export default {
     /* wwEditor:start */
     const isEditing = computed(() => props.wwEditorState?.isEditing);
     /* wwEditor:end */
+    //#endregion
 
-    // ========================================
-    // INITIALIZATION
-    // ========================================
-    
+    //#region Initialization
     // Transform and initialize nodes from props
     watch(() => props.content?.initialNodes, (newNodes) => {
       if (newNodes && Array.isArray(newNodes) && newNodes.length > 0) {
@@ -296,11 +295,9 @@ export default {
         setEdges(JSON.parse(JSON.stringify(newEdges)));
       }
     }, { immediate: true });
+    //#endregion
 
-    // ========================================
-    // COMPUTED STYLES
-    // ========================================
-    
+    //#region Computed Styles
     const canvasStyle = computed(() => ({
       '--canvas-bg': props.content?.backgroundColor || '#ffffff',
       '--node-bg': props.content?.nodeBackgroundColor || '#f9f9f9',
@@ -329,11 +326,9 @@ export default {
       '--dropzone-height': props.content?.dropZoneHeight || '80px',
       '--dropzone-bg': props.content?.dropZoneBackground || '#f5f5f5',
     }));
+    //#endregion
 
-    // ========================================
-    // COMPUTED PROPERTIES (Formulas)
-    // ========================================
-    
+    //#region Computed Properties
     const visibleEdges = computed(() => {
       const nodeIds = new Set(nodes.value?.map(n => n.id) || []);
       return (edges.value || []).filter(edge => 
@@ -359,11 +354,9 @@ export default {
       
       return createBezierPath(sourcePos, targetPos);
     });
+    //#endregion
 
-    // ========================================
-    // NODE METHODS
-    // ========================================
-    
+    //#region Node Methods
     const getNodeStyle = (node) => {
       return {
         position: 'absolute',
@@ -424,11 +417,9 @@ export default {
         y: nodeY + offset.y,
       };
     };
+    //#endregion
 
-    // ========================================
-    // EDGE METHODS
-    // ========================================
-    
+    //#region Edge Methods
     const getEdgePath = (edge) => {
       const sourceNode = nodes.value?.find(n => n.id === edge.source);
       const targetNode = nodes.value?.find(n => n.id === edge.target);
@@ -464,11 +455,9 @@ export default {
       
       return `M ${source.x} ${source.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${target.x} ${target.y}`;
     };
+    //#endregion
 
-    // ========================================
-    // INTERACTION HANDLERS
-    // ========================================
-    
+    //#region Interaction Handlers
     const handleCanvasMouseDown = (event) => {
       // Only pan if clicking on canvas background (not nodes)
       if (event.target === canvasContainer.value || event.target.closest('.canvas-grid') || event.target.closest('.canvas-viewport')) {
@@ -634,11 +623,9 @@ export default {
         setDraggingConnection(null);
       }
     };
+    //#endregion
 
-    // ========================================
-    // CANVAS CONTROL METHODS (Triggers)
-    // ========================================
-    
+    //#region Canvas Control Methods
     const addNode = (nodeData) => {
       const newNode = {
         id: nodeData?.id || `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -724,7 +711,6 @@ export default {
         event: { edge: newEdge }
       });
     };
-
     const removeEdge = (edgeId) => {
       setEdges((edges.value || []).filter(e => e.id !== edgeId));
       
@@ -803,11 +789,9 @@ export default {
         event: {}
       });
     };
+    //#endregion
 
-    // ========================================
-    // LIFECYCLE
-    // ========================================
-    
+    //#region Lifecycle
     onMounted(() => {
       // Initialize zoom percentage
       setZoomPercentage(Math.round((viewport.value?.zoom || 1) * 100));
@@ -819,11 +803,9 @@ export default {
     onUnmounted(() => {
       document.removeEventListener('mouseup', handleCanvasMouseUp);
     });
+    //#endregion
 
-    // ========================================
-    // WATCHERS
-    // ========================================
-    
+    //#region Watchers
     // Watch for property changes that should trigger re-render
     watch(() => [
       props.content?.gridEnabled,
@@ -835,11 +817,9 @@ export default {
     ], () => {
       // Visual properties - handled by computed styles
     }, { deep: true });
+    //#endregion
 
-    // ========================================
-    // RETURN
-    // ========================================
-    
+    //#region Return
     return {
       // Refs
       canvasContainer,
@@ -899,11 +879,13 @@ export default {
       isEditing,
       /* wwEditor:end */
     };
+    //#endregion
   },
 };
 </script>
 
 <style lang="scss" scoped>
+//#region Base Container
 .ww-canvas-vueflow {
   position: relative;
   width: 100%;
@@ -936,11 +918,9 @@ export default {
   transform-origin: 0 0;
   transition: transform 0.05s ease-out;
 }
+//#endregion
 
-// ========================================
-// EDGES
-// ========================================
-
+//#region Edges
 .edges-layer {
   position: absolute;
   top: 0;
@@ -975,11 +955,9 @@ export default {
   stroke: var(--node-selected);
   stroke-width: 3;
 }
+//#endregion
 
-// ========================================
-// NODES
-// ========================================
-
+//#region Nodes
 .canvas-node {
   position: absolute;
   min-width: 120px;
@@ -1058,11 +1036,9 @@ export default {
     color: #ff3b30;
   }
 }
+//#endregion
 
-// ========================================
-// HANDLES
-// ========================================
-
+//#region Node Handles
 .node-handle {
   position: absolute;
   width: 12px;
@@ -1093,11 +1069,9 @@ export default {
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   }
 }
+//#endregion
 
-// ========================================
-// DROPZONE CONTROL
-// ========================================
-
+//#region Dropzone Control
 .dropzone-control {
   position: absolute;
   bottom: 12px;
@@ -1171,11 +1145,9 @@ export default {
 .dropzone-container:not(:empty)::after {
   display: none;
 }
+//#endregion
 
-// ========================================
-// CANVAS CONTROLS
-// ========================================
-
+//#region Canvas Controls
 .canvas-controls {
   display: flex;
   gap: 4px;
@@ -1206,11 +1178,9 @@ export default {
     transform: scale(0.95);
   }
 }
+//#endregion
 
-// ========================================
-// RESPONSIVE
-// ========================================
-
+//#region Responsive
 @media (max-width: 768px) {
   .dropzone-control {
     flex-direction: column;
@@ -1229,4 +1199,5 @@ export default {
     justify-content: space-between;
   }
 }
+//#endregion
 </style>

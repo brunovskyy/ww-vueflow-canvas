@@ -5,11 +5,9 @@ export default {
     },
     icon: "fontawesome/solid/project-diagram",
   },
+  //#region Properties
   properties: {
-    // ========================================
-    // CANVAS SETTINGS
-    // ========================================
-    
+    //#region Initial Nodes
     initialNodes: {
       label: { en: 'Initial Nodes' },
       type: 'Array',
@@ -17,28 +15,28 @@ export default {
       bindable: true,
       defaultValue: [
         {
-          id: 'node-1',
+          id: '1',
           type: 'default',
           positionX: 250,
           positionY: 100,
           label: 'Start Node',
-          description: 'This is the starting point'
+          description: 'This is the starting point.'
         },
         {
-          id: 'node-2',
+          id: '2',
           type: 'default',
           positionX: 250,
           positionY: 250,
           label: 'Process Node',
-          description: 'Processing data'
+          description: 'Processing data.'
         },
         {
-          id: 'node-3',
+          id: '3',
           type: 'default',
           positionX: 250,
           positionY: 400,
           label: 'End Node',
-          description: 'Final result'
+          description: 'This is the final result node.'
         }
       ],
       options: {
@@ -135,7 +133,9 @@ export default {
       propertyHelp: 'Define the initial nodes to display on the canvas. Each node should have an id, type, position {x, y}, and data {label, description}.'
       /* wwEditor:end */
     },
+    //#endregion
 
+    //#region Initial Edges
     initialEdges: {
       label: { en: 'Initial Edges' },
       type: 'Array',
@@ -165,7 +165,7 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: 'new-edge',
+            id: 'edge',
             source: '',
             target: '',
             sourceHandle: 'bottom',
@@ -253,11 +253,9 @@ export default {
       propertyHelp: 'Define the initial edges (connections) between nodes. Each edge should have an id, source node id, and target node id.'
       /* wwEditor:end */
     },
+    //#endregion
 
-    // ========================================
-    // CANVAS BEHAVIOR
-    // ========================================
-
+    //#region Canvas Behavior
     gridEnabled: {
       label: { en: 'Show Grid' },
       type: 'OnOff',
@@ -390,11 +388,9 @@ export default {
       propertyHelp: 'Choose the visual style for edges connecting nodes'
       /* wwEditor:end */
     },
+    //#endregion
 
-    // ========================================
-    // DROPZONE SETTINGS
-    // ========================================
-
+    //#region Dropzone Settings
     dropZoneEnabled: {
       label: { en: 'Enable Drop Zone' },
       type: 'OnOff',
@@ -450,11 +446,9 @@ export default {
       },
       /* wwEditor:end */
     },
+    //#endregion
 
-    // ========================================
-    // CANVAS STYLING
-    // ========================================
-
+    //#region Canvas Styling
     backgroundColor: {
       label: { en: 'Canvas Background' },
       type: 'Color',
@@ -483,11 +477,9 @@ export default {
       },
       /* wwEditor:end */
     },
+    //#endregion
 
-    // ========================================
-    // NODE STYLING
-    // ========================================
-
+    //#region Node Styling
     nodeBackgroundColor: {
       label: { en: 'Node Background' },
       type: 'Color',
@@ -544,11 +536,9 @@ export default {
       },
       /* wwEditor:end */
     },
+    //#endregion
 
-    // ========================================
-    // EDGE STYLING
-    // ========================================
-
+    //#region Edge Styling
     edgeColor: {
       label: { en: 'Edge Color' },
       type: 'Color',
@@ -577,11 +567,9 @@ export default {
       /* wwEditor:end */
     },
   },
+  //#endregion
 
-  // ========================================
-  // TRIGGER EVENTS
-  // ========================================
-  
+  //#region Trigger Events
   triggerEvents: [
     {
       name: 'node-added',
@@ -680,4 +668,5 @@ export default {
       /* wwEditor:end */
     }
   ]
+  //#endregion
 };
