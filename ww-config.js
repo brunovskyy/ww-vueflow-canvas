@@ -19,34 +19,42 @@ export default {
         {
           id: 'node-1',
           type: 'default',
-          position: { x: 250, y: 100 },
-          data: { label: 'Start Node', description: 'This is the starting point' }
+          positionX: 250,
+          positionY: 100,
+          label: 'Start Node',
+          description: 'This is the starting point'
         },
         {
           id: 'node-2',
           type: 'default',
-          position: { x: 250, y: 250 },
-          data: { label: 'Process Node', description: 'Processing data' }
+          positionX: 250,
+          positionY: 250,
+          label: 'Process Node',
+          description: 'Processing data'
         },
         {
           id: 'node-3',
           type: 'default',
-          position: { x: 250, y: 400 },
-          data: { label: 'End Node', description: 'Final result' }
+          positionX: 250,
+          positionY: 400,
+          label: 'End Node',
+          description: 'Final result'
         }
       ],
       options: {
         expandable: true,
         getItemLabel(item) {
-          return item?.data?.label || item?.data?.title || `Node ${item?.id || 'Unknown'}`;
+          return item?.label || item?.title || `Node ${item?.id || 'Unknown'}`;
         },
         item: {
           type: 'Object',
           defaultValue: {
             id: 'new-node',
             type: 'default',
-            position: { x: 100, y: 100 },
-            data: { label: 'New Node', description: '' }
+            positionX: 100,
+            positionY: 100,
+            label: 'New Node',
+            description: ''
           },
           options: {
             item: {
@@ -71,25 +79,47 @@ export default {
                 },
                 /* wwEditor:end */
               },
-              position: {
-                label: { en: 'Position' },
-                type: 'Object',
-                defaultValue: { x: 100, y: 100 },
+              positionX: {
+                label: { en: 'X Position' },
+                type: 'Number',
+                defaultValue: 100,
                 /* wwEditor:start */
                 bindingValidation: {
-                  type: 'object',
-                  tooltip: 'Position object with x and y coordinates'
+                  type: 'number',
+                  tooltip: 'X coordinate on canvas'
                 },
                 /* wwEditor:end */
               },
-              data: {
-                label: { en: 'Node Data' },
-                type: 'Object',
-                defaultValue: { label: 'Node', description: '' },
+              positionY: {
+                label: { en: 'Y Position' },
+                type: 'Number',
+                defaultValue: 100,
                 /* wwEditor:start */
                 bindingValidation: {
-                  type: 'object',
-                  tooltip: 'Custom data for the node (label, description, etc.)'
+                  type: 'number',
+                  tooltip: 'Y coordinate on canvas'
+                },
+                /* wwEditor:end */
+              },
+              label: {
+                label: { en: 'Node Label' },
+                type: 'Text',
+                defaultValue: 'Node',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Display label for the node'
+                },
+                /* wwEditor:end */
+              },
+              description: {
+                label: { en: 'Description' },
+                type: 'Text',
+                defaultValue: '',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Optional description text'
                 },
                 /* wwEditor:end */
               }

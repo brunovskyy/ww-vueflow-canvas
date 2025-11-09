@@ -20,7 +20,7 @@
           :width="gridSize" 
           :height="gridSize" 
           patternUnits="userSpaceOnUse"
-          :patternTransform="`translate(${viewport.x % gridSize}, ${viewport.y % gridSize}) scale(${viewport.zoom})`"
+          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
         >
           <path 
             :d="`M ${gridSize} 0 L 0 0 0 ${gridSize}`" 
@@ -183,7 +183,9 @@ export default {
     wwEditorState: { type: Object, required: true },
     /* wwEditor:end */
   },
-  emits: ['trigger-event'],
+  emits: {
+    'trigger-event': null
+  },
   setup(props, { emit }) {
     // ========================================
     // REFS
@@ -268,10 +270,23 @@ export default {
     // INITIALIZATION
     // ========================================
     
-    // Initialize nodes from props
+    // Transform and initialize nodes from props
     watch(() => props.content?.initialNodes, (newNodes) => {
       if (newNodes && Array.isArray(newNodes) && newNodes.length > 0) {
-        setNodes(JSON.parse(JSON.stringify(newNodes)));
+        // Transform flattened structure to VueFlow format
+        const transformedNodes = newNodes.map(node => ({
+          id: node?.id || `node-${Date.now()}`,
+          type: node?.type || 'default',
+          position: {
+            x: node?.positionX ?? node?.position?.x ?? 100,
+            y: node?.positionY ?? node?.position?.y ?? 100
+          },
+          data: {
+            label: node?.label ?? node?.data?.label ?? 'Node',
+            description: node?.description ?? node?.data?.description ?? ''
+          }
+        }));
+        setNodes(JSON.parse(JSON.stringify(transformedNodes)));
       }
     }, { immediate: true });
 
@@ -459,8 +474,8 @@ export default {
       if (event.target === canvasContainer.value || event.target.closest('.canvas-grid') || event.target.closest('.canvas-viewport')) {
         isPanning.value = true;
         panStart.value = {
-          x: event.clientX - viewport.value.x,
-          y: event.clientY - viewport.value.y,
+          x: event.clientX - (viewport.value?.x || 0),
+          y: event.clientY - (viewport.value?.y || 0),
         };
         
         // Deselect when clicking canvas
@@ -471,15 +486,15 @@ export default {
 
     const handleCanvasMouseMove = (event) => {
       // Update mouse position for connection preview
-      if (canvasContainer.value) {
+      if (canvasContainer.value && viewport.value) {
         const rect = canvasContainer.value.getBoundingClientRect();
-        const x = (event.clientX - rect.left - viewport.value.x) / viewport.value.zoom;
-        const y = (event.clientY - rect.top - viewport.value.y) / viewport.value.zoom;
+        const x = (event.clientX - rect.left - (viewport.value.x || 0)) / (viewport.value.zoom || 1);
+        const y = (event.clientY - rect.top - (viewport.value.y || 0)) / (viewport.value.zoom || 1);
         mousePosition.value = { x, y };
       }
       
       // Handle panning
-      if (isPanning.value && props.content?.zoomEnabled !== false) {
+      if (isPanning.value && props.content?.zoomEnabled !== false && viewport.value) {
         const newX = event.clientX - panStart.value.x;
         const newY = event.clientY - panStart.value.y;
         setViewport({ ...viewport.value, x: newX, y: newY });
@@ -525,13 +540,13 @@ export default {
     };
 
     const handleWheel = (event) => {
-      if (props.content?.zoomEnabled === false) return;
+      if (props.content?.zoomEnabled === false || !viewport.value) return;
       
       event.preventDefault();
       
       const delta = -event.deltaY * 0.001;
       const newZoom = Math.min(
-        Math.max(viewport.value.zoom + delta, props.content?.minZoom || 0.1),
+        Math.max((viewport.value.zoom || 1) + delta, props.content?.minZoom || 0.1),
         props.content?.maxZoom || 2
       );
       
@@ -724,7 +739,8 @@ export default {
     };
 
     const handleZoomIn = () => {
-      const newZoom = Math.min(viewport.value.zoom + 0.1, props.content?.maxZoom || 2);
+      if (!viewport.value) return;
+      const newZoom = Math.min((viewport.value.zoom || 1) + 0.1, props.content?.maxZoom || 2);
       setViewport({ ...viewport.value, zoom: newZoom });
       setZoomPercentage(Math.round(newZoom * 100));
       
@@ -735,7 +751,8 @@ export default {
     };
 
     const handleZoomOut = () => {
-      const newZoom = Math.max(viewport.value.zoom - 0.1, props.content?.minZoom || 0.1);
+      if (!viewport.value) return;
+      const newZoom = Math.max((viewport.value.zoom || 1) - 0.1, props.content?.minZoom || 0.1);
       setViewport({ ...viewport.value, zoom: newZoom });
       setZoomPercentage(Math.round(newZoom * 100));
       
@@ -793,7 +810,7 @@ export default {
     
     onMounted(() => {
       // Initialize zoom percentage
-      setZoomPercentage(Math.round(viewport.value.zoom * 100));
+      setZoomPercentage(Math.round((viewport.value?.zoom || 1) * 100));
       
       // Add global mouse up listener for better drag handling
       document.addEventListener('mouseup', handleCanvasMouseUp);
