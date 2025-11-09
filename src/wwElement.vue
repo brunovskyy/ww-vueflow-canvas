@@ -10,13 +10,15 @@
   >
     <!-- #region Background Grid -->
     <svg 
-      v-if="content?.gridEnabled"
+      v-if="content?.gridEnabled && content?.gridPattern !== 'none'"
       class="canvas-grid"
       :style="gridStyle"
     >
       <defs>
+        <!-- Lines Pattern (Squared Grid) -->
         <pattern 
-          id="grid-pattern" 
+          v-if="content?.gridPattern === 'lines' || !content?.gridPattern"
+          id="grid-pattern-lines" 
           :width="gridSize" 
           :height="gridSize" 
           patternUnits="userSpaceOnUse"
@@ -29,8 +31,48 @@
             stroke-width="0.5"
           />
         </pattern>
+
+        <!-- Dots Pattern (Along Lines) -->
+        <pattern 
+          v-if="content?.gridPattern === 'dots'"
+          id="grid-pattern-dots" 
+          :width="gridSize" 
+          :height="gridSize" 
+          patternUnits="userSpaceOnUse"
+          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
+        >
+          <circle 
+            v-for="(pos, idx) in dotPositions" 
+            :key="idx"
+            :cx="pos.x" 
+            :cy="pos.y" 
+            r="1" 
+            :fill="content?.gridColor || '#e0e0e0'"
+          />
+        </pattern>
+
+        <!-- Cross Pattern (Vertices Only) -->
+        <pattern 
+          v-if="content?.gridPattern === 'cross'"
+          id="grid-pattern-cross" 
+          :width="gridSize" 
+          :height="gridSize" 
+          patternUnits="userSpaceOnUse"
+          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
+        >
+          <circle 
+            cx="0" 
+            cy="0" 
+            r="1.5" 
+            :fill="content?.gridColor || '#e0e0e0'"
+          />
+        </pattern>
       </defs>
-      <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+      <rect 
+        width="100%" 
+        height="100%" 
+        :fill="gridPatternFill" 
+      />
     </svg>
     <!-- #endregion -->
 
@@ -83,17 +125,22 @@
         :key="node.id"
         :class="['canvas-node', { 
           'node-selected': selectedNodeId === node.id,
-          'node-dragging': draggingNodeId === node.id
+          'node-dragging': draggingNodeId === node.id,
+          'node-hovered': hoveredNodeId === node.id
         }]"
         :style="getNodeStyle(node)"
         @mousedown.stop="handleNodeMouseDown($event, node.id)"
+        @mouseenter="hoveredNodeId = node.id"
+        @mouseleave="hoveredNodeId = null"
         @click.stop="handleNodeClick(node.id)"
       >
         <!-- Node Handles -->
         <div
           v-for="handle in getNodeHandles(node)"
           :key="handle.id"
-          :class="['node-handle', `handle-${handle.position}`, `handle-${handle.type}`]"
+          :class="['node-handle', `handle-${handle.position}`, `handle-${handle.type}`, {
+            'handle-visible': hoveredNodeId === node.id || draggingConnection !== null
+          }]"
           :style="getHandleStyle(handle)"
           @mousedown.stop="handleHandleMouseDown($event, node.id, handle)"
           @mouseup.stop="handleHandleMouseUp($event, node.id, handle)"
@@ -180,6 +227,15 @@
 <script>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 
+//#region Helper Functions
+/**
+ * Generate a UUID for nodes and edges
+ */
+const generateUUID = () => {
+  return crypto.randomUUID();
+};
+//#endregion
+
 export default {
   props: {
     uid: { type: String, required: true },
@@ -261,6 +317,7 @@ export default {
     const isPanning = ref(false);
     const panStart = ref({ x: 0, y: 0 });
     const mousePosition = ref({ x: 0, y: 0 });
+    const hoveredNodeId = ref(null);
     const gridSize = 20;
 
     /* wwEditor:start */
@@ -272,9 +329,9 @@ export default {
     // Transform and initialize nodes from props
     watch(() => props.content?.initialNodes, (newNodes) => {
       if (newNodes && Array.isArray(newNodes) && newNodes.length > 0) {
-        // Transform flattened structure to VueFlow format
+        // Transform flattened structure to VueFlow format with UUID generation
         const transformedNodes = newNodes.map(node => ({
-          id: node?.id || `node-${Date.now()}`,
+          id: generateUUID(), // Always generate new UUID on initialization
           type: node?.type || 'default',
           position: {
             x: node?.positionX ?? node?.position?.x ?? 100,
@@ -292,7 +349,12 @@ export default {
     // Initialize edges from props
     watch(() => props.content?.initialEdges, (newEdges) => {
       if (newEdges && Array.isArray(newEdges) && newEdges.length > 0) {
-        setEdges(JSON.parse(JSON.stringify(newEdges)));
+        // Generate new UUIDs for all edges on initialization
+        const transformedEdges = newEdges.map(edge => ({
+          ...edge,
+          id: generateUUID()
+        }));
+        setEdges(JSON.parse(JSON.stringify(transformedEdges)));
       }
     }, { immediate: true });
     //#endregion
@@ -353,6 +415,25 @@ export default {
       const targetPos = mousePosition.value;
       
       return createBezierPath(sourcePos, targetPos);
+    });
+
+    // Grid pattern fill URL
+    const gridPatternFill = computed(() => {
+      const pattern = props.content?.gridPattern || 'lines';
+      if (pattern === 'none') return 'transparent';
+      return `url(#grid-pattern-${pattern})`;
+    });
+
+    // Dot positions for dots pattern
+    const dotPositions = computed(() => {
+      const size = gridSize;
+      const positions = [];
+      // Create dots along the grid lines
+      for (let i = 0; i <= size; i += 4) {
+        positions.push({ x: i, y: 0 }); // Top edge
+        positions.push({ x: 0, y: i }); // Left edge
+      }
+      return positions;
     });
     //#endregion
 
@@ -596,7 +677,7 @@ export default {
         
         // Create new edge
         const newEdge = {
-          id: `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          id: generateUUID(),
           source: draggingConnection.value.sourceNodeId,
           target: nodeId,
           sourceHandle: draggingConnection.value.sourceHandle,
@@ -628,7 +709,7 @@ export default {
     //#region Canvas Control Methods
     const addNode = (nodeData) => {
       const newNode = {
-        id: nodeData?.id || `node-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: generateUUID(),
         type: nodeData?.type || 'default',
         position: nodeData?.position || { x: 100, y: 100 },
         data: nodeData?.data || { label: 'New Node' },
@@ -697,7 +778,7 @@ export default {
 
     const addEdge = (edgeData) => {
       const newEdge = {
-        id: edgeData?.id || `edge-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: generateUUID(),
         source: edgeData.source,
         target: edgeData.target,
         sourceHandle: edgeData?.sourceHandle,
@@ -809,6 +890,7 @@ export default {
     // Watch for property changes that should trigger re-render
     watch(() => [
       props.content?.gridEnabled,
+      props.content?.gridPattern,
       props.content?.backgroundColor,
       props.content?.nodeBackgroundColor,
       props.content?.nodeBorderColor,
@@ -838,6 +920,7 @@ export default {
       selectedEdgeId,
       draggingConnection,
       draggingNodeId,
+      hoveredNodeId,
       mousePosition,
       gridSize,
       
@@ -845,6 +928,8 @@ export default {
       visibleEdges,
       getSelectedNodeLabel,
       connectionPreviewPath,
+      gridPatternFill,
+      dotPositions,
       
       // Methods
       getNodeStyle,
@@ -1045,6 +1130,9 @@ export default {
   height: 12px;
   cursor: crosshair;
   z-index: 100;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  pointer-events: none;
   
   &.handle-source {
     cursor: crosshair;
@@ -1052,6 +1140,18 @@ export default {
   
   &.handle-target {
     cursor: pointer;
+  }
+
+  // Show handles when node is hovered or connection is being dragged
+  &.handle-visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  // Also show when node is selected
+  .node-selected & {
+    opacity: 1;
+    pointer-events: all;
   }
 }
 

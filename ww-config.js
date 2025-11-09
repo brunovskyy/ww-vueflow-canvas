@@ -1,9 +1,78 @@
 export default {
   editor: {
     label: {
-      en: "Vueflow Canvas Element",
+      en: "Node Canvas",
     },
-    icon: "fontawesome/solid/project-diagram",
+    icon: "canvas",
+    customStylePropertiesOrder: [
+      {
+        label: "Canvas",
+        isCollapsible: true,
+        properties: [
+          "gridColor",
+          "gridPattern",
+        ],
+      },
+      {
+        label: "Actions Panel",
+        isCollapsible: true,
+        properties: [
+          "enableZoomButton",
+          "enableFitButton",
+          "enableResetButton",
+        ],
+      },
+      {
+        label: "Nodes",
+        isCollapsible: true,
+        properties: [
+          "nodeBackgroundColor",
+          "nodeBorderColor",
+          "selectedNodeBorderColor",
+          "handleColor",
+        ],
+      },
+      {
+        label: "Edges",
+        isCollapsible: true,
+        properties: [
+          "selectedHandleColor",
+          "edgeColor",
+          "selectedEdgeColor",
+        ],
+      },
+    ],
+    customSettingsPropertiesOrder: [
+      {
+        label: "Canvas",
+        isCollapsible: true,
+        properties: [
+          "showGrid",
+          "snapToGrid",
+          "enableZoom",
+          "enableSpan",
+          "minZoom",
+          "maxZoom",
+        ],
+      },
+      {
+        label: "Nodes",
+        isCollapsible: true,
+        properties: [
+          "connectableNodes",
+          "deletableNodes",
+          "initialNodes",
+        ],
+      },
+      {
+        label: "Edges",
+        isCollapsible: true,
+        properties: [
+          "pathType",
+          "initialEdges",
+        ],
+      },
+    ],
   },
   //#region Properties
   properties: {
@@ -15,7 +84,7 @@ export default {
       bindable: true,
       defaultValue: [
         {
-          id: '1',
+          id: crypto.randomUUID(),
           type: 'default',
           positionX: 250,
           positionY: 100,
@@ -23,7 +92,7 @@ export default {
           description: 'This is the starting point.'
         },
         {
-          id: '2',
+          id: crypto.randomUUID(),
           type: 'default',
           positionX: 250,
           positionY: 250,
@@ -31,7 +100,7 @@ export default {
           description: 'Processing data.'
         },
         {
-          id: '3',
+          id: crypto.randomUUID(),
           type: 'default',
           positionX: 250,
           positionY: 400,
@@ -47,7 +116,7 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: 'new-node',
+            id: crypto.randomUUID(),
             type: 'default',
             positionX: 100,
             positionY: 100,
@@ -141,22 +210,7 @@ export default {
       type: 'Array',
       section: 'settings',
       bindable: true,
-      defaultValue: [
-        {
-          id: 'edge-1',
-          source: 'node-1',
-          target: 'node-2',
-          sourceHandle: 'bottom',
-          targetHandle: 'top'
-        },
-        {
-          id: 'edge-2',
-          source: 'node-2',
-          target: 'node-3',
-          sourceHandle: 'bottom',
-          targetHandle: 'top'
-        }
-      ],
+      defaultValue: [],
       options: {
         expandable: true,
         getItemLabel(item) {
@@ -165,7 +219,7 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: 'edge',
+            id: crypto.randomUUID(),
             source: '',
             target: '',
             sourceHandle: 'bottom',
@@ -392,7 +446,7 @@ export default {
 
     //#region Dropzone Settings
     dropZoneEnabled: {
-      label: { en: 'Enable Drop Zone' },
+      label: { en: 'Enable Control Zone Dropzone' },
       type: 'OnOff',
       section: 'settings',
       defaultValue: true,
@@ -418,7 +472,7 @@ export default {
     },
 
     dropZoneHeight: {
-      label: { en: 'Drop Zone Height' },
+      label: { en: 'Dropzone Height' },
       type: 'Length',
       section: 'style',
       defaultValue: '80px',
@@ -433,7 +487,7 @@ export default {
     },
 
     dropZoneBackground: {
-      label: { en: 'Drop Zone Background' },
+      label: { en: 'Dropzone Background' },
       type: 'Color',
       section: 'style',
       defaultValue: '#f5f5f5',
@@ -442,7 +496,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
-        tooltip: 'Background color for drop zone'
+        tooltip: 'Background color for dropzone'
       },
       /* wwEditor:end */
     },
@@ -475,6 +529,30 @@ export default {
         type: 'string',
         tooltip: 'Color of grid lines'
       },
+      /* wwEditor:end */
+    },
+
+    gridPattern: {
+      label: { en: 'Grid Pattern' },
+      type: 'TextSelect',
+      section: 'style',
+      options: {
+        options: [
+          { value: 'lines', label: 'Lines (Squared Grid)' },
+          { value: 'dots', label: 'Dots (Along Lines)' },
+          { value: 'cross', label: 'Cross (Vertices Only)' },
+          { value: 'none', label: 'None (Hidden)' }
+        ]
+      },
+      defaultValue: 'lines',
+      bindable: true,
+      hidden: content => !content?.gridEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: lines | dots | cross | none'
+      },
+      propertyHelp: 'Choose the visual pattern for the background grid'
       /* wwEditor:end */
     },
     //#endregion
