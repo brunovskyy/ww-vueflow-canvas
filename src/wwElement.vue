@@ -214,6 +214,7 @@
       :action-button-dropzones="content?.actionButtonDropzones || {}"
       :canvas-rect="canvasRect"
       :viewport="viewport"
+      :is-dragging="draggingNodeId !== null"
       @action-execute="handleActionExecute"
       @menu-opened="handleSelectionMenuOpened"
       @menu-closed="handleSelectionMenuClosed"
@@ -555,6 +556,7 @@ export default {
       handleBorderColor: props.content?.handleBorderColor,
       selectedHandleColor: props.content?.selectedHandleColor,
       nodeDropzoneBackgroundColor: props.content?.nodeDropzoneBackgroundColor,
+      handleProximityRadius: props.content?.handleProximityRadius,
     }));
 
     const edgeConfig = computed(() => ({

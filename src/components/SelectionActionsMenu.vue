@@ -1,7 +1,7 @@
 <template>
   <div
     v-if="isVisible"
-    class="selection-actions-menu"
+    :class="['selection-actions-menu', { 'dark-theme': isDarkTheme }]"
     :style="menuStyle"
   >
     <!-- Default Mode: Built-in Action Buttons -->
@@ -125,6 +125,10 @@ export default {
       type: Object,
       default: () => ({ x: 0, y: 0, zoom: 1 }),
     },
+    isDragging: {
+      type: Boolean,
+      default: false,
+    },
   },
   emits: ['action-execute', 'menu-opened', 'menu-closed'],
   setup(props, { emit }) {
@@ -135,6 +139,8 @@ export default {
 
     //#region Computed Properties
     const isVisible = computed(() => {
+      // Hide menu when dragging nodes
+      if (props.isDragging) return false;
       return props.enabled && (props.selectedNodes?.length > 0 || props.selectedEdges?.length > 0);
     });
 
@@ -219,16 +225,32 @@ export default {
         };
       }
       
-      // Calculate center of all selected items
-      const positions = [
-        ...props.selectedNodes.map(n => n.position),
-        ...props.selectedEdges.map(e => {
-          // Approximate edge center (would need source/target nodes for exact)
-          return { x: 0, y: 0 };
-        }),
-      ].filter(p => p.x !== undefined);
+      // Calculate bounding box of all selected items in world coordinates
+      let minX = Infinity, maxX = -Infinity;
+      let minY = Infinity, maxY = -Infinity;
       
-      if (positions.length === 0) {
+      // Approximate node dimensions (standard node size)
+      const nodeWidth = 150;
+      const nodeHeight = 80;
+      
+      props.selectedNodes?.forEach(node => {
+        const x = node?.position?.x || 0;
+        const y = node?.position?.y || 0;
+        
+        // Calculate node bounds
+        const left = x - nodeWidth / 2;
+        const right = x + nodeWidth / 2;
+        const top = y - nodeHeight / 2;
+        const bottom = y + nodeHeight / 2;
+        
+        minX = Math.min(minX, left);
+        maxX = Math.max(maxX, right);
+        minY = Math.min(minY, top);
+        maxY = Math.max(maxY, bottom);
+      });
+      
+      // If no valid positions found, use fallback
+      if (!isFinite(minX)) {
         return {
           position: 'absolute',
           bottom: '80px',
@@ -236,23 +258,132 @@ export default {
         };
       }
       
-      const sumX = positions.reduce((sum, p) => sum + p.x, 0);
-      const sumY = positions.reduce((sum, p) => sum + p.y, 0);
-      const centerX = sumX / positions.length;
-      const centerY = sumY / positions.length;
+      // Transform selection bounds to screen coordinates
+      const screenLeft = minX * props.viewport.zoom + props.viewport.x;
+      const screenRight = maxX * props.viewport.zoom + props.viewport.x;
+      const screenTop = minY * props.viewport.zoom + props.viewport.y;
+      const screenBottom = maxY * props.viewport.zoom + props.viewport.y;
       
-      // Transform to screen coordinates
-      const screenX = centerX * props.viewport.zoom + props.viewport.x;
-      const screenY = centerY * props.viewport.zoom + props.viewport.y;
+      const screenCenterX = (screenLeft + screenRight) / 2;
+      const screenCenterY = (screenTop + screenBottom) / 2;
+      const selectionWidth = screenRight - screenLeft;
+      const selectionHeight = screenBottom - screenTop;
       
-      // Position above selection
-      const offset = props.config?.selectionMenuOffset || 60;
+      // Estimate menu dimensions
+      const estimatedMenuWidth = Math.max(300, props.selectedNodes?.length * 120 || 300);
+      const estimatedMenuHeight = 60;
+      
+      // Distance from selection (20px as requested)
+      const menuGap = 20;
+      
+      // Canvas boundaries
+      const padding = 20;
+      const canvasWidth = props.canvasRect.width;
+      const canvasHeight = props.canvasRect.height;
+      
+      // Calculate available space in each direction
+      const spaceTop = screenTop - padding;
+      const spaceBottom = canvasHeight - screenBottom - padding;
+      const spaceLeft = screenLeft - padding;
+      const spaceRight = canvasWidth - screenRight - padding;
+      
+      // Determine best position based on available space
+      let position = 'top'; // default
+      let transform = 'translate(-50%, -100%)';
+      let posX = screenCenterX;
+      let posY = screenTop - menuGap;
+      
+      // Check if menu fits in each direction and choose the one with most space
+      const canFitTop = spaceTop >= estimatedMenuHeight + menuGap;
+      const canFitBottom = spaceBottom >= estimatedMenuHeight + menuGap;
+      const canFitLeft = spaceLeft >= estimatedMenuWidth + menuGap;
+      const canFitRight = spaceRight >= estimatedMenuWidth + menuGap;
+      
+      // Priority: top > bottom > right > left (top is preferred)
+      if (canFitTop) {
+        // Position above selection (default)
+        position = 'top';
+        posX = screenCenterX;
+        posY = screenTop - menuGap;
+        transform = 'translate(-50%, -100%)';
+      } else if (canFitBottom) {
+        // Position below selection
+        position = 'bottom';
+        posX = screenCenterX;
+        posY = screenBottom + menuGap;
+        transform = 'translate(-50%, 0%)';
+      } else if (canFitRight) {
+        // Position to the right
+        position = 'right';
+        posX = screenRight + menuGap;
+        posY = screenCenterY;
+        transform = 'translate(0%, -50%)';
+      } else if (canFitLeft) {
+        // Position to the left
+        position = 'left';
+        posX = screenLeft - menuGap;
+        posY = screenCenterY;
+        transform = 'translate(-100%, -50%)';
+      } else {
+        // Fallback: choose direction with most space and clamp
+        const maxSpace = Math.max(spaceTop, spaceBottom, spaceLeft, spaceRight);
+        
+        if (maxSpace === spaceTop || maxSpace === spaceBottom) {
+          // Use top or bottom (whichever has more space)
+          if (spaceTop >= spaceBottom) {
+            position = 'top';
+            posX = screenCenterX;
+            posY = Math.max(padding + estimatedMenuHeight, screenTop - menuGap);
+            transform = 'translate(-50%, -100%)';
+          } else {
+            position = 'bottom';
+            posX = screenCenterX;
+            posY = Math.min(canvasHeight - padding, screenBottom + menuGap);
+            transform = 'translate(-50%, 0%)';
+          }
+        } else {
+          // Use left or right (whichever has more space)
+          if (spaceRight >= spaceLeft) {
+            position = 'right';
+            posX = Math.min(canvasWidth - padding, screenRight + menuGap);
+            posY = screenCenterY;
+            transform = 'translate(0%, -50%)';
+          } else {
+            position = 'left';
+            posX = Math.max(padding + estimatedMenuWidth, screenLeft - menuGap);
+            posY = screenCenterY;
+            transform = 'translate(-100%, -50%)';
+          }
+        }
+      }
+      
+      // Final boundary clamping to ensure menu stays within canvas
+      const halfMenuWidth = estimatedMenuWidth / 2;
+      const halfMenuHeight = estimatedMenuHeight / 2;
+      
+      // Clamp based on position and transform
+      if (position === 'top' || position === 'bottom') {
+        // Horizontal centering - ensure menu doesn't overflow sides
+        posX = Math.max(padding + halfMenuWidth, Math.min(canvasWidth - padding - halfMenuWidth, posX));
+      } else if (position === 'left') {
+        // Left positioning - ensure menu stays within left boundary
+        // With transform: translate(-100%, -50%), menu right edge is at posX
+        posX = Math.max(padding + estimatedMenuWidth, posX);
+        // Vertical centering - ensure menu doesn't overflow top/bottom
+        posY = Math.max(padding + halfMenuHeight, Math.min(canvasHeight - padding - halfMenuHeight, posY));
+      } else if (position === 'right') {
+        // Right positioning - ensure menu stays within right boundary
+        // With transform: translate(0%, -50%), menu left edge is at posX
+        posX = Math.min(canvasWidth - padding - estimatedMenuWidth, posX);
+        // Vertical centering - ensure menu doesn't overflow top/bottom
+        posY = Math.max(padding + halfMenuHeight, Math.min(canvasHeight - padding - halfMenuHeight, posY));
+      }
       
       return {
         position: 'absolute',
-        left: `${screenX}px`,
-        top: `${screenY - offset}px`,
-        transform: 'translate(-50%, -100%)',
+        left: `${posX}px`,
+        top: `${posY}px`,
+        transform: transform,
         '--menu-bg': props.config?.selectionMenuBackground || '#ffffff',
         '--menu-border': props.config?.selectionMenuBorderColor || '#d0d0d0',
       };
@@ -262,6 +393,25 @@ export default {
       '--tooltip-bg': props.config?.tooltipBackground || '#333333',
       '--tooltip-color': props.config?.tooltipColor || '#ffffff',
     }));
+
+    /**
+     * Detect if dark theme is active based on background color
+     */
+    const isDarkTheme = computed(() => {
+      const bgColor = props.config?.selectionMenuBackground || '#ffffff';
+      
+      // Parse hex color and calculate luminance
+      const hex = bgColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Calculate relative luminance (perceived brightness)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      
+      // Dark theme if luminance is below 0.5
+      return luminance < 0.5;
+    });
     //#endregion
 
     //#region Helper Methods
@@ -345,6 +495,7 @@ export default {
       availableActions,
       menuStyle,
       tooltipStyle,
+      isDarkTheme,
       isActionApplicableToItem,
       hasCustomButton,
       getActionIcon,
@@ -395,6 +546,19 @@ export default {
   &:active {
     transform: translateY(0);
   }
+
+  // Dark theme adjustments
+  .dark-theme & {
+    background: #2c2c2c;
+    border-color: #444;
+    color: #e0e0e0;
+
+    &:hover {
+      background: #383838;
+      border-color: #007aff;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+  }
 }
 
 .action-icon {
@@ -436,6 +600,17 @@ export default {
     border-color: transparent;
     background: transparent;
   }
+
+  // Dark theme adjustments
+  .dark-theme & {
+    border-color: #555;
+    background: rgba(255, 255, 255, 0.05);
+
+    &:hover {
+      border-color: #007aff;
+      background: rgba(0, 122, 255, 0.1);
+    }
+  }
 }
 
 .action-placeholder {
@@ -448,6 +623,11 @@ export default {
   font-style: italic;
   pointer-events: none;
   white-space: nowrap;
+
+  // Dark theme adjustments
+  .dark-theme & {
+    color: #777;
+  }
 }
 
 .action-dropzone:not(:empty) + .action-placeholder {

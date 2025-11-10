@@ -37,7 +37,7 @@ export default {
         ],
       },
       {
-        label: "Selection Menu",
+        label: "Selection Actions Menu",
         isCollapsible: true,
         properties: [
           "selectionMenuBackground",
@@ -74,6 +74,7 @@ export default {
           "connectableNodes",
           "deletableNodes",
           "nodeDropzoneEnabled",
+          "handleProximityRadius",
           "initialNodes",
         ],
       },
@@ -347,6 +348,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -362,6 +365,8 @@ export default {
       section: 'settings',
       defaultValue: false,
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.showGrid,
       /* wwEditor:start */
       bindingValidation: {
@@ -378,6 +383,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -393,6 +400,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -411,6 +420,8 @@ export default {
       max: 1,
       step: 0.05,
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.enableZoom,
       /* wwEditor:start */
       bindingValidation: {
@@ -429,6 +440,8 @@ export default {
       max: 5,
       step: 0.1,
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.enableZoom,
       /* wwEditor:start */
       bindingValidation: {
@@ -445,6 +458,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -460,6 +475,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -475,6 +492,8 @@ export default {
       section: 'settings',
       defaultValue: false,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -498,6 +517,8 @@ export default {
       },
       defaultValue: 'bezier',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -515,6 +536,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -536,6 +559,8 @@ export default {
       },
       defaultValue: 'default',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.selectionMenuEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -559,6 +584,8 @@ export default {
       },
       defaultValue: 'both',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.selectionMenuEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -817,6 +844,8 @@ export default {
       section: 'settings',
       defaultValue: true,
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
@@ -843,6 +872,8 @@ export default {
       section: 'style',
       defaultValue: '80px',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.actionsDropzoneEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -858,6 +889,8 @@ export default {
       section: 'style',
       defaultValue: '#f5f5f5',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.actionsDropzoneEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -886,6 +919,8 @@ export default {
       section: 'style',
       defaultValue: 'transparent',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.nodeDropzoneEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -903,6 +938,8 @@ export default {
       section: 'style',
       defaultValue: '#ffffff',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -917,6 +954,8 @@ export default {
       section: 'style',
       defaultValue: '#e0e0e0',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.showGrid,
       /* wwEditor:start */
       bindingValidation: {
@@ -938,8 +977,10 @@ export default {
           { value: 'none', label: 'None (Hidden)' }
         ]
       },
-      defaultValue: 'lines',
+      defaultValue: 'cross',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.showGrid,
       /* wwEditor:start */
       bindingValidation: {
@@ -962,6 +1003,8 @@ export default {
       },
       defaultValue: 'free',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -979,6 +1022,8 @@ export default {
       section: 'style',
       defaultValue: '#f9f9f9',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -993,6 +1038,8 @@ export default {
       section: 'style',
       defaultValue: '#d0d0d0',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -1007,6 +1054,8 @@ export default {
       section: 'style',
       defaultValue: '#007aff',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -1021,6 +1070,8 @@ export default {
       section: 'style',
       defaultValue: '#007aff',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.connectableNodes,
       /* wwEditor:start */
       bindingValidation: {
@@ -1036,12 +1087,32 @@ export default {
       section: 'style',
       defaultValue: '#ffffff',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.connectableNodes,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
         tooltip: 'Border color of connection handles'
       },
+      /* wwEditor:end */
+    },
+
+    handleProximityRadius: {
+      label: { en: 'Handle Proximity Radius' },
+      type: 'Length',
+      section: 'settings',
+      defaultValue: '20px',
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => !content?.connectableNodes,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'CSS length value for handle interaction area'
+      },
+      propertyHelp: 'Sets the invisible interaction radius around handles. Larger values make it easier to grab handles without pixel-perfect precision. Visual handle size remains 12px.'
       /* wwEditor:end */
     },
     //#endregion
@@ -1053,6 +1124,8 @@ export default {
       section: 'style',
       defaultValue: '#0066ff',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.connectableNodes,
       /* wwEditor:start */
       bindingValidation: {
@@ -1068,6 +1141,8 @@ export default {
       section: 'style',
       defaultValue: '#999999',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -1082,6 +1157,8 @@ export default {
       section: 'style',
       defaultValue: '#007aff',
       bindable: true,
+      states: true,
+      classes: true,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -1096,6 +1173,8 @@ export default {
       section: 'style',
       defaultValue: '#ffffff',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.selectionMenuEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -1111,6 +1190,8 @@ export default {
       section: 'style',
       defaultValue: '#d0d0d0',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.selectionMenuEnabled,
       /* wwEditor:start */
       bindingValidation: {
@@ -1126,6 +1207,8 @@ export default {
       section: 'style',
       defaultValue: '60px',
       bindable: true,
+      states: true,
+      classes: true,
       hidden: content => !content?.selectionMenuEnabled,
       /* wwEditor:start */
       bindingValidation: {

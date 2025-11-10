@@ -3,7 +3,8 @@
     :class="['canvas-node', { 
       'node-selected': isSelected,
       'node-dragging': isDragging,
-      'node-hovered': isHovered
+      'node-hovered': isHovered,
+      'dark-theme': isDarkTheme
     }]"
     :style="nodeStyle"
     @mousedown.stop="handleMouseDown"
@@ -143,6 +144,25 @@ export default {
     const handlesVisible = computed(() => {
       return props.isHovered || props.connectionDragging || props.isSelected;
     });
+
+    /**
+     * Detect if dark theme is active based on node background color
+     */
+    const isDarkTheme = computed(() => {
+      const bgColor = props.config?.nodeBackgroundColor || '#f9f9f9';
+      
+      // Parse hex color and calculate luminance
+      const hex = bgColor.replace('#', '');
+      const r = parseInt(hex.substr(0, 2), 16);
+      const g = parseInt(hex.substr(2, 2), 16);
+      const b = parseInt(hex.substr(4, 2), 16);
+      
+      // Calculate relative luminance (perceived brightness)
+      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+      
+      // Dark theme if luminance is below 0.5
+      return luminance < 0.5;
+    });
     //#endregion
 
     //#region Event Handlers
@@ -187,6 +207,7 @@ export default {
       nodeDescription,
       nodeHandles,
       handlesVisible,
+      isDarkTheme,
       handleMouseDown,
       handleClick,
       handleMouseEnter,
@@ -249,12 +270,20 @@ export default {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+
+  .dark-theme & {
+    color: #e0e0e0;
+  }
 }
 
 .node-description {
   font-size: 12px;
   color: #666;
   margin-top: 4px;
+
+  .dark-theme & {
+    color: #999;
+  }
 }
 
 .node-delete {
@@ -271,11 +300,27 @@ export default {
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  transition: background 0.2s ease, color 0.2s ease;
+  transition: all 0.2s ease;
+  opacity: 0;
+  pointer-events: none;
+
+  .canvas-node:hover & {
+    opacity: 1;
+    pointer-events: all;
+  }
 
   &:hover {
     background: rgba(255, 0, 0, 0.1);
     color: #ff3b30;
+  }
+
+  .dark-theme & {
+    color: #bbb;
+
+    &:hover {
+      background: rgba(255, 0, 0, 0.2);
+      color: #ff6b60;
+    }
   }
 }
 

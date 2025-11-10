@@ -3,11 +3,11 @@
     :class="['node-handle', `handle-${handle?.position}`, `handle-${handle?.type}`, {
       'handle-visible': isVisible
     }]"
-    :style="handleStyle"
+    :style="handleContainerStyle"
     @mousedown.stop="handleMouseDown"
     @mouseup.stop="handleMouseUp"
   >
-    <div class="handle-dot" />
+    <div class="handle-dot" :style="handleDotStyle" />
   </div>
 </template>
 
@@ -38,15 +38,56 @@ export default {
   emits: ['handle-mousedown', 'handle-mouseup'],
   setup(props, { emit }) {
     //#region Computed Styles
-    const handleStyle = computed(() => {
+    const proximityRadius = computed(() => {
+      const radius = props.config?.handleProximityRadius || '20px';
+      // Parse the value to extract number (e.g., "20px" -> 20)
+      const numericValue = parseInt(radius, 10);
+      return isNaN(numericValue) ? 20 : numericValue;
+    });
+
+    const handleContainerStyle = computed(() => {
+      const radius = proximityRadius.value;
       const positions = {
-        top: { top: '0', left: '50%', transform: 'translate(-50%, -50%)' },
-        bottom: { bottom: '0', left: '50%', transform: 'translate(-50%, 50%)' },
-        left: { left: '0', top: '50%', transform: 'translate(-50%, -50%)' },
-        right: { right: '0', top: '50%', transform: 'translate(50%, -50%)' },
+        top: { 
+          top: '0', 
+          left: '50%', 
+          transform: 'translate(-50%, -50%)',
+          width: `${radius * 2}px`,
+          height: `${radius * 2}px`
+        },
+        bottom: { 
+          bottom: '0', 
+          left: '50%', 
+          transform: 'translate(-50%, 50%)',
+          width: `${radius * 2}px`,
+          height: `${radius * 2}px`
+        },
+        left: { 
+          left: '0', 
+          top: '50%', 
+          transform: 'translate(-50%, -50%)',
+          width: `${radius * 2}px`,
+          height: `${radius * 2}px`
+        },
+        right: { 
+          right: '0', 
+          top: '50%', 
+          transform: 'translate(50%, -50%)',
+          width: `${radius * 2}px`,
+          height: `${radius * 2}px`
+        },
       };
       return positions[props.handle?.position] || positions.right;
     });
+
+    const handleDotStyle = computed(() => ({
+      width: '12px',
+      height: '12px',
+      position: 'absolute',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)'
+    }));
     //#endregion
 
     //#region Event Handlers
@@ -72,7 +113,8 @@ export default {
     //#endregion
 
     return {
-      handleStyle,
+      handleContainerStyle,
+      handleDotStyle,
       handleMouseDown,
       handleMouseUp,
     };
@@ -83,12 +125,13 @@ export default {
 <style lang="scss" scoped>
 .node-handle {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: crosshair;
   z-index: 100;
   opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  transition: opacity 0.2s ease;
   pointer-events: none;
   
   &.handle-source {
@@ -106,8 +149,6 @@ export default {
 }
 
 .handle-dot {
-  width: 100%;
-  height: 100%;
   background: var(--handle-bg, #007aff);
   border: 2px solid var(--handle-border, #ffffff);
   border-radius: 50%;
