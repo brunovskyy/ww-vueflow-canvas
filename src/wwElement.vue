@@ -316,7 +316,6 @@ export default {
     const panStart = ref({ x: 0, y: 0 });
     const mousePosition = ref({ x: 0, y: 0 });
     const hoveredNodeId = ref(null);
-    const gridSize = 200; // Larger grid for tree layout levels
     const nodeSpacing = { horizontal: 250, vertical: 150 }; // Spacing for tree layout
     
     // Multi-selection state
@@ -374,7 +373,7 @@ export default {
       while (queue.length > 0) {
         const { id, level } = queue.shift();
         if (visited.has(id)) continue;
-        visited.has(id);
+        visited.add(id);
         
         levels[id] = level;
         
@@ -1259,29 +1258,8 @@ export default {
     //#endregion
 
     //#region Watchers
-    // Watch for property changes that should trigger re-render
-    watch(() => [
-      props.content?.showGrid,
-      props.content?.gridPattern,
-      props.content?.gridLayout,
-      props.content?.enableVignette,
-      props.content?.vignetteIntensity,
-      props.content?.vignetteSize,
-      props.content?.backgroundColor,
-      props.content?.nodeBackgroundColor,
-      props.content?.nodeBorderColor,
-      props.content?.selectedNodeBorderColor,
-      props.content?.handleColor,
-      props.content?.handleBorderColor,
-      props.content?.selectedHandleColor,
-      props.content?.edgeColor,
-      props.content?.selectedEdgeColor,
-      props.content?.pathType,
-      props.content?.nodeDropzoneBackgroundColor,
-      props.content?.actionsDropzoneBackground,
-    ], () => {
-      // Visual properties - handled by computed styles
-    }, { deep: true });
+    // Note: Visual property changes are automatically handled by computed styles
+    // No explicit watchers needed for reactive CSS variables
     //#endregion
 
     //#region Return

@@ -119,7 +119,7 @@ export default {
       bindable: true,
       defaultValue: [
         {
-          id: crypto.randomUUID(),
+          id: 'node-1',
           type: 'default',
           positionX: 250,
           positionY: 100,
@@ -127,7 +127,7 @@ export default {
           description: 'This is the starting point.'
         },
         {
-          id: crypto.randomUUID(),
+          id: 'node-2',
           type: 'default',
           positionX: 250,
           positionY: 250,
@@ -135,7 +135,7 @@ export default {
           description: 'Processing data.'
         },
         {
-          id: crypto.randomUUID(),
+          id: 'node-3',
           type: 'default',
           positionX: 250,
           positionY: 400,
@@ -151,7 +151,7 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: crypto.randomUUID(),
+            id: 'new-node',
             type: 'default',
             positionX: 100,
             positionY: 100,
@@ -254,7 +254,7 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: crypto.randomUUID(),
+            id: 'new-edge',
             source: '',
             target: '',
             sourceHandle: 'bottom',

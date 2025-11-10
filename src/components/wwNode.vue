@@ -27,7 +27,7 @@
     <!-- Node Content: Custom Dropzone or Default Card -->
     <div v-if="nodeDropzoneEnabled" class="node-dropzone-wrapper">
       <wwLayout 
-        :path="`nodeDropzoneContent`" 
+        path="nodeDropzoneContent" 
         direction="column"
         class="node-dropzone"
       />
@@ -53,6 +53,7 @@
 <script>
 import { ref, computed } from 'vue';
 import wwHandle from './wwHandle.vue';
+import { isDarkColor } from '../utils/colorHelpers';
 
 export default {
   name: 'wwNode',
@@ -150,18 +151,7 @@ export default {
      */
     const isDarkTheme = computed(() => {
       const bgColor = props.config?.nodeBackgroundColor || '#f9f9f9';
-      
-      // Parse hex color and calculate luminance
-      const hex = bgColor.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
-      
-      // Calculate relative luminance (perceived brightness)
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      
-      // Dark theme if luminance is below 0.5
-      return luminance < 0.5;
+      return isDarkColor(bgColor);
     });
     //#endregion
 

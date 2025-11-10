@@ -66,6 +66,7 @@
 
 <script>
 import { ref, computed, watch } from 'vue';
+import { isDarkColor } from '../utils/colorHelpers';
 
 export default {
   name: 'SelectionActionsMenu',
@@ -399,18 +400,7 @@ export default {
      */
     const isDarkTheme = computed(() => {
       const bgColor = props.config?.selectionMenuBackground || '#ffffff';
-      
-      // Parse hex color and calculate luminance
-      const hex = bgColor.replace('#', '');
-      const r = parseInt(hex.substr(0, 2), 16);
-      const g = parseInt(hex.substr(2, 2), 16);
-      const b = parseInt(hex.substr(4, 2), 16);
-      
-      // Calculate relative luminance (perceived brightness)
-      const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-      
-      // Dark theme if luminance is below 0.5
-      return luminance < 0.5;
+      return isDarkColor(bgColor);
     });
     //#endregion
 
