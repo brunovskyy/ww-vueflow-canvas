@@ -10,7 +10,7 @@
   >
     <!-- #region Background Grid -->
     <svg 
-      v-if="content?.gridEnabled && content?.gridPattern !== 'none'"
+      v-if="content?.showGrid && content?.gridPattern !== 'none'"
       class="canvas-grid"
       :style="gridStyle"
     >
@@ -19,13 +19,13 @@
         <pattern 
           v-if="content?.gridPattern === 'lines' || !content?.gridPattern"
           id="grid-pattern-lines" 
-          :width="gridSize" 
-          :height="gridSize" 
+          :width="20" 
+          :height="20" 
           patternUnits="userSpaceOnUse"
-          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
+          :patternTransform="`translate(${(viewport?.x || 0) % 20}, ${(viewport?.y || 0) % 20}) scale(${viewport?.zoom || 1})`"
         >
           <path 
-            :d="`M ${gridSize} 0 L 0 0 0 ${gridSize}`" 
+            :d="`M 20 0 L 0 0 0 20`" 
             fill="none" 
             :stroke="content?.gridColor || '#e0e0e0'" 
             stroke-width="0.5"
@@ -36,10 +36,10 @@
         <pattern 
           v-if="content?.gridPattern === 'dots'"
           id="grid-pattern-dots" 
-          :width="gridSize" 
-          :height="gridSize" 
+          :width="20" 
+          :height="20" 
           patternUnits="userSpaceOnUse"
-          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
+          :patternTransform="`translate(${(viewport?.x || 0) % 20}, ${(viewport?.y || 0) % 20}) scale(${viewport?.zoom || 1})`"
         >
           <circle 
             v-for="(pos, idx) in dotPositions" 
@@ -55,10 +55,10 @@
         <pattern 
           v-if="content?.gridPattern === 'cross'"
           id="grid-pattern-cross" 
-          :width="gridSize" 
-          :height="gridSize" 
+          :width="20" 
+          :height="20" 
           patternUnits="userSpaceOnUse"
-          :patternTransform="`translate(${(viewport?.x || 0) % gridSize}, ${(viewport?.y || 0) % gridSize}) scale(${viewport?.zoom || 1})`"
+          :patternTransform="`translate(${(viewport?.x || 0) % 20}, ${(viewport?.y || 0) % 20}) scale(${viewport?.zoom || 1})`"
         >
           <circle 
             cx="0" 
@@ -124,7 +124,7 @@
         v-for="node in nodes"
         :key="node.id"
         :class="['canvas-node', { 
-          'node-selected': selectedNodeId === node.id,
+          'node-selected': selectedNodeIds?.includes(node.id),
           'node-dragging': draggingNodeId === node.id,
           'node-hovered': hoveredNodeId === node.id
         }]"
@@ -132,7 +132,7 @@
         @mousedown.stop="handleNodeMouseDown($event, node.id)"
         @mouseenter="hoveredNodeId = node.id"
         @mouseleave="hoveredNodeId = null"
-        @click.stop="handleNodeClick(node.id)"
+        @click.stop="handleNodeClick($event, node.id)"
       >
         <!-- Node Handles -->
         <div
@@ -169,9 +169,22 @@
     </div>
     <!-- #endregion -->
 
+    <!-- #region Multi-Selection Box -->
+    <div
+      v-if="selectionBox"
+      class="selection-box"
+      :style="{
+        left: `${selectionBox.left}px`,
+        top: `${selectionBox.top}px`,
+        width: `${selectionBox.width}px`,
+        height: `${selectionBox.height}px`
+      }"
+    />
+    <!-- #endregion -->
+
     <!-- #region Drop Zone Control -->
     <div 
-      v-if="content?.dropZoneEnabled"
+      v-if="content?.actionsDropzoneEnabled"
       class="dropzone-control"
       :style="dropZoneStyle"
     >
@@ -183,7 +196,7 @@
 
       <!-- Dropzone Actions (WeWeb elements can be dropped here) -->
       <wwLayout 
-        path="dropZoneContent" 
+        path="actionsDropzoneContent" 
         direction="row"
         class="dropzone-container"
       />
@@ -254,60 +267,20 @@ export default {
 
     //#region Internal Variables
     
-    // Nodes state
-    const { value: nodes, setValue: setNodes } = wwLib.wwVariable.useComponentVariable({
+    // UNIFIED CANVAS STATE - Single object containing all canvas data
+    const { value: canvasState, setValue: setCanvasState } = wwLib.wwVariable.useComponentVariable({
       uid: props.uid,
-      name: 'nodes',
-      type: 'array',
-      defaultValue: [],
-    });
-
-    // Edges state
-    const { value: edges, setValue: setEdges } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'edges',
-      type: 'array',
-      defaultValue: [],
-    });
-
-    // Viewport state
-    const { value: viewport, setValue: setViewport } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'viewport',
+      name: 'canvas',
       type: 'object',
-      defaultValue: { x: 0, y: 0, zoom: 1 },
-    });
-
-    // Selected node ID
-    const { value: selectedNodeId, setValue: setSelectedNodeId } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'selectedNodeId',
-      type: 'string',
-      defaultValue: null,
-    });
-
-    // Selected edge ID
-    const { value: selectedEdgeId, setValue: setSelectedEdgeId } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'selectedEdgeId',
-      type: 'string',
-      defaultValue: null,
-    });
-
-    // Dragging connection state
-    const { value: draggingConnection, setValue: setDraggingConnection } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'draggingConnection',
-      type: 'object',
-      defaultValue: null,
-    });
-
-    // Zoom percentage
-    const { value: zoomPercentage, setValue: setZoomPercentage } = wwLib.wwVariable.useComponentVariable({
-      uid: props.uid,
-      name: 'zoomPercentage',
-      type: 'number',
-      defaultValue: 100,
+      defaultValue: {
+        nodes: [],
+        edges: [],
+        viewport: { x: 0, y: 0, zoom: 1 },
+        selectedNodeIds: [],
+        selectedEdgeId: null,
+        zoomPercentage: 100,
+        draggingConnection: null
+      },
     });
     //#endregion
 
@@ -318,7 +291,13 @@ export default {
     const panStart = ref({ x: 0, y: 0 });
     const mousePosition = ref({ x: 0, y: 0 });
     const hoveredNodeId = ref(null);
-    const gridSize = 20;
+    const gridSize = 200; // Larger grid for tree layout levels
+    const nodeSpacing = { horizontal: 250, vertical: 150 }; // Spacing for tree layout
+    
+    // Multi-selection state
+    const isSelecting = ref(false);
+    const selectionStart = ref({ x: 0, y: 0 });
+    const selectionEnd = ref({ x: 0, y: 0 });
 
     /* wwEditor:start */
     const isEditing = computed(() => props.wwEditorState?.isEditing);
@@ -326,11 +305,101 @@ export default {
     //#endregion
 
     //#region Initialization
+    // Helper functions for unified state updates
+    const updateCanvasState = (updates) => {
+      setCanvasState({ ...canvasState.value, ...updates });
+    };
+
+    const nodes = computed(() => canvasState.value?.nodes || []);
+    const edges = computed(() => canvasState.value?.edges || []);
+    const viewport = computed(() => canvasState.value?.viewport || { x: 0, y: 0, zoom: 1 });
+    const selectedNodeIds = computed(() => canvasState.value?.selectedNodeIds || []);
+    const selectedEdgeId = computed(() => canvasState.value?.selectedEdgeId || null);
+    const draggingConnection = computed(() => canvasState.value?.draggingConnection || null);
+    const zoomPercentage = computed(() => canvasState.value?.zoomPercentage || 100);
+    
+    // Backward compatible: first selected node for single-selection UX
+    const selectedNodeId = computed(() => selectedNodeIds.value?.[0] || null);
+
+    // Calculate hierarchical levels for tree layout
+    const calculateTreeLayout = (nodesList, edgesList) => {
+      if (!nodesList?.length) return nodesList;
+      
+      // Find root nodes (nodes with no incoming edges)
+      const targetNodeIds = new Set(edgesList?.map(e => e.target) || []);
+      const rootNodes = nodesList.filter(n => !targetNodeIds.has(n.id));
+      
+      if (rootNodes.length === 0) {
+        // No clear roots, use first node
+        rootNodes.push(nodesList[0]);
+      }
+      
+      // Build adjacency list
+      const children = {};
+      edgesList?.forEach(edge => {
+        if (!children[edge.source]) children[edge.source] = [];
+        children[edge.source].push(edge.target);
+      });
+      
+      // Calculate levels using BFS
+      const levels = {};
+      const queue = rootNodes.map(n => ({ id: n.id, level: 0 }));
+      const visited = new Set();
+      
+      while (queue.length > 0) {
+        const { id, level } = queue.shift();
+        if (visited.has(id)) continue;
+        visited.has(id);
+        
+        levels[id] = level;
+        
+        const childNodes = children[id] || [];
+        childNodes.forEach(childId => {
+          if (!visited.has(childId)) {
+            queue.push({ id: childId, level: level + 1 });
+          }
+        });
+      }
+      
+      // Group nodes by level
+      const nodesByLevel = {};
+      nodesList.forEach(node => {
+        const level = levels[node.id] ?? 0;
+        if (!nodesByLevel[level]) nodesByLevel[level] = [];
+        nodesByLevel[level].push(node);
+      });
+      
+      // Position nodes
+      const positionedNodes = [];
+      Object.keys(nodesByLevel).sort((a, b) => Number(a) - Number(b)).forEach(level => {
+        const nodesAtLevel = nodesByLevel[level];
+        const levelNum = Number(level);
+        const totalWidth = nodesAtLevel.length * nodeSpacing.horizontal;
+        const startX = -totalWidth / 2 + nodeSpacing.horizontal / 2;
+        
+        nodesAtLevel.forEach((node, index) => {
+          positionedNodes.push({
+            ...node,
+            position: {
+              x: startX + (index * nodeSpacing.horizontal),
+              y: levelNum * nodeSpacing.vertical + 100
+            },
+            data: {
+              ...node.data,
+              level: levelNum
+            }
+          });
+        });
+      });
+      
+      return positionedNodes;
+    };
+
     // Transform and initialize nodes from props
     watch(() => props.content?.initialNodes, (newNodes) => {
       if (newNodes && Array.isArray(newNodes) && newNodes.length > 0) {
         // Transform flattened structure to VueFlow format with UUID generation
-        const transformedNodes = newNodes.map(node => ({
+        let transformedNodes = newNodes.map(node => ({
           id: generateUUID(), // Always generate new UUID on initialization
           type: node?.type || 'default',
           position: {
@@ -339,10 +408,17 @@ export default {
           },
           data: {
             label: node?.label ?? node?.data?.label ?? 'Node',
-            description: node?.description ?? node?.data?.description ?? ''
+            description: node?.description ?? node?.data?.description ?? '',
+            level: node?.data?.level ?? 0
           }
         }));
-        setNodes(JSON.parse(JSON.stringify(transformedNodes)));
+        
+        // Apply tree layout if enabled
+        if (props.content?.gridLayout === 'tree') {
+          transformedNodes = calculateTreeLayout(transformedNodes, canvasState.value?.edges || []);
+        }
+        
+        updateCanvasState({ nodes: transformedNodes });
       }
     }, { immediate: true });
 
@@ -354,9 +430,26 @@ export default {
           ...edge,
           id: generateUUID()
         }));
-        setEdges(JSON.parse(JSON.stringify(transformedEdges)));
+        updateCanvasState({ edges: transformedEdges });
+        
+        // Recalculate tree layout when edges change
+        if (props.content?.gridLayout === 'tree' && canvasState.value?.nodes?.length) {
+          const repositionedNodes = calculateTreeLayout(canvasState.value.nodes, transformedEdges);
+          updateCanvasState({ nodes: repositionedNodes });
+        }
       }
     }, { immediate: true });
+    
+    // Watch for layout mode changes
+    watch(() => props.content?.gridLayout, (newLayout) => {
+      if (newLayout === 'tree' && canvasState.value?.nodes?.length) {
+        const repositionedNodes = calculateTreeLayout(
+          canvasState.value.nodes,
+          canvasState.value.edges || []
+        );
+        updateCanvasState({ nodes: repositionedNodes });
+      }
+    });
     //#endregion
 
     //#region Computed Styles
@@ -364,8 +457,13 @@ export default {
       '--canvas-bg': props.content?.backgroundColor || '#ffffff',
       '--node-bg': props.content?.nodeBackgroundColor || '#f9f9f9',
       '--node-border': props.content?.nodeBorderColor || '#d0d0d0',
-      '--node-selected': props.content?.selectedNodeColor || '#007aff',
+      '--node-selected-border': props.content?.selectedNodeBorderColor || '#007aff',
       '--handle-bg': props.content?.handleColor || '#007aff',
+      '--handle-border': props.content?.handleBorderColor || '#ffffff',
+      '--handle-selected': props.content?.selectedHandleColor || '#0066ff',
+      '--edge-color': props.content?.edgeColor || '#999999',
+      '--edge-selected': props.content?.selectedEdgeColor || '#007aff',
+      '--node-dropzone-bg': props.content?.nodeDropzoneBackgroundColor || 'transparent',
       width: '100%',
       height: '100%',
     }));
@@ -385,8 +483,8 @@ export default {
     }));
 
     const dropZoneStyle = computed(() => ({
-      '--dropzone-height': props.content?.dropZoneHeight || '80px',
-      '--dropzone-bg': props.content?.dropZoneBackground || '#f5f5f5',
+      '--dropzone-height': props.content?.actionsDropzoneHeight || '80px',
+      '--dropzone-bg': props.content?.actionsDropzoneBackground || '#f5f5f5',
     }));
     //#endregion
 
@@ -426,7 +524,7 @@ export default {
 
     // Dot positions for dots pattern
     const dotPositions = computed(() => {
-      const size = gridSize;
+      const size = 20; // Use small grid for visual pattern
       const positions = [];
       // Create dots along the grid lines
       for (let i = 0; i <= size; i += 4) {
@@ -434,6 +532,23 @@ export default {
         positions.push({ x: 0, y: i }); // Left edge
       }
       return positions;
+    });
+    
+    // Selection box coordinates (for multi-select)
+    const selectionBox = computed(() => {
+      if (!isSelecting.value) return null;
+      
+      const x1 = Math.min(selectionStart.value.x, selectionEnd.value.x);
+      const y1 = Math.min(selectionStart.value.y, selectionEnd.value.y);
+      const x2 = Math.max(selectionStart.value.x, selectionEnd.value.x);
+      const y2 = Math.max(selectionStart.value.y, selectionEnd.value.y);
+      
+      return {
+        left: x1,
+        top: y1,
+        width: x2 - x1,
+        height: y2 - y1
+      };
     });
     //#endregion
 
@@ -514,7 +629,7 @@ export default {
       const sourcePos = getHandlePosition(sourceNode, { position: sourceHandle });
       const targetPos = getHandlePosition(targetNode, { position: targetHandle });
       
-      const pathType = props.content?.edgePathType || 'bezier';
+      const pathType = props.content?.pathType || 'bezier';
       
       if (pathType === 'straight') {
         return `M ${sourcePos.x} ${sourcePos.y} L ${targetPos.x} ${targetPos.y}`;
@@ -540,17 +655,34 @@ export default {
 
     //#region Interaction Handlers
     const handleCanvasMouseDown = (event) => {
-      // Only pan if clicking on canvas background (not nodes)
-      if (event.target === canvasContainer.value || event.target.closest('.canvas-grid') || event.target.closest('.canvas-viewport')) {
+      // Middle-click (button 1) for panning
+      if (event.button === 1 && props.content?.enablePan !== false) {
+        event.preventDefault();
         isPanning.value = true;
         panStart.value = {
           x: event.clientX - (viewport.value?.x || 0),
           y: event.clientY - (viewport.value?.y || 0),
         };
+        return;
+      }
+      
+      // Left-click (button 0) on canvas background for multi-select
+      if (event.button === 0 && (event.target === canvasContainer.value || event.target.closest('.canvas-grid') || event.target.closest('.canvas-viewport'))) {
+        isSelecting.value = true;
         
-        // Deselect when clicking canvas
-        setSelectedNodeId(null);
-        setSelectedEdgeId(null);
+        if (canvasContainer.value && viewport.value) {
+          const rect = canvasContainer.value.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const y = event.clientY - rect.top;
+          
+          selectionStart.value = { x, y };
+          selectionEnd.value = { x, y };
+        }
+        
+        // Deselect when clicking canvas (if not holding Ctrl/Cmd)
+        if (!event.ctrlKey && !event.metaKey) {
+          updateCanvasState({ selectedNodeIds: [], selectedEdgeId: null });
+        }
       }
     };
 
@@ -563,25 +695,59 @@ export default {
         mousePosition.value = { x, y };
       }
       
-      // Handle panning
-      if (isPanning.value && props.content?.zoomEnabled !== false && viewport.value) {
+      // Handle panning (middle-click)
+      if (isPanning.value && viewport.value) {
         const newX = event.clientX - panStart.value.x;
         const newY = event.clientY - panStart.value.y;
-        setViewport({ ...viewport.value, x: newX, y: newY });
+        updateCanvasState({ 
+          viewport: { ...viewport.value, x: newX, y: newY }
+        });
+      }
+      
+      // Handle multi-selection box
+      if (isSelecting.value && canvasContainer.value) {
+        const rect = canvasContainer.value.getBoundingClientRect();
+        selectionEnd.value = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
+        
+        // Calculate nodes within selection box
+        if (selectionBox.value && viewport.value) {
+          const box = selectionBox.value;
+          const selectedIds = nodes.value?.filter(node => {
+            const nodeScreenX = node.position.x * viewport.value.zoom + viewport.value.x;
+            const nodeScreenY = node.position.y * viewport.value.zoom + viewport.value.y;
+            
+            return nodeScreenX >= box.left && 
+                   nodeScreenX <= box.left + box.width &&
+                   nodeScreenY >= box.top && 
+                   nodeScreenY <= box.top + box.height;
+          }).map(n => n.id) || [];
+          
+          updateCanvasState({ selectedNodeIds: selectedIds });
+        }
       }
       
       // Handle node dragging
       if (draggingNodeId.value) {
         const node = nodes.value?.find(n => n.id === draggingNodeId.value);
         if (node) {
-          const newX = mousePosition.value.x;
-          const newY = mousePosition.value.y;
+          let newX = mousePosition.value.x;
+          let newY = mousePosition.value.y;
           
-          // Snap to grid if enabled
-          const finalX = props.content?.snapToGrid ? Math.round(newX / gridSize) * gridSize : newX;
-          const finalY = props.content?.snapToGrid ? Math.round(newY / gridSize) * gridSize : newY;
+          // Tree layout: constrain Y to level, snap X to grid
+          if (props.content?.gridLayout === 'tree') {
+            const level = node.data?.level ?? 0;
+            newY = level * nodeSpacing.vertical + 100; // Lock Y to level
+            newX = Math.round(newX / nodeSpacing.horizontal) * nodeSpacing.horizontal; // Snap X
+          } else if (props.content?.snapToGrid) {
+            // Free layout: snap to grid if enabled
+            newX = Math.round(newX / 20) * 20;
+            newY = Math.round(newY / 20) * 20;
+          }
           
-          updateNodePosition(draggingNodeId.value, finalX, finalY);
+          updateNodePosition(draggingNodeId.value, newX, newY);
         }
       }
     };
@@ -589,6 +755,10 @@ export default {
     const handleCanvasMouseUp = () => {
       if (isPanning.value) {
         isPanning.value = false;
+      }
+      
+      if (isSelecting.value) {
+        isSelecting.value = false;
       }
       
       if (draggingNodeId.value) {
@@ -605,12 +775,12 @@ export default {
       
       if (draggingConnection.value) {
         // Connection attempt ended without target
-        setDraggingConnection(null);
+        updateCanvasState({ draggingConnection: null });
       }
     };
 
     const handleWheel = (event) => {
-      if (props.content?.zoomEnabled === false || !viewport.value) return;
+      if (props.content?.enableZoom === false || !viewport.value) return;
       
       event.preventDefault();
       
@@ -620,8 +790,10 @@ export default {
         props.content?.maxZoom || 2
       );
       
-      setViewport({ ...viewport.value, zoom: newZoom });
-      setZoomPercentage(Math.round(newZoom * 100));
+      updateCanvasState({ 
+        viewport: { ...viewport.value, zoom: newZoom },
+        zoomPercentage: Math.round(newZoom * 100)
+      });
       
       emit('trigger-event', {
         name: 'zoom-changed',
@@ -630,6 +802,7 @@ export default {
     };
 
     const handleNodeMouseDown = (event, nodeId) => {
+      event.stopPropagation();
       draggingNodeId.value = nodeId;
       const node = nodes.value?.find(n => n.id === nodeId);
       if (node) {
@@ -640,19 +813,29 @@ export default {
       }
     };
 
-    const handleNodeClick = (nodeId) => {
-      setSelectedNodeId(nodeId);
-      setSelectedEdgeId(null);
+    const handleNodeClick = (event, nodeId) => {
+      event.stopPropagation();
+      
+      // Multi-select with Ctrl/Cmd
+      if (event.ctrlKey || event.metaKey) {
+        const currentSelected = selectedNodeIds.value || [];
+        const newSelected = currentSelected.includes(nodeId)
+          ? currentSelected.filter(id => id !== nodeId)
+          : [...currentSelected, nodeId];
+        updateCanvasState({ selectedNodeIds: newSelected, selectedEdgeId: null });
+      } else {
+        // Single select
+        updateCanvasState({ selectedNodeIds: [nodeId], selectedEdgeId: null });
+      }
       
       emit('trigger-event', {
         name: 'node-selected',
-        event: { nodeId, node: nodes.value?.find(n => n.id === nodeId) }
+        event: { nodeId, node: nodes.value?.find(n => n.id === nodeId), selectedNodeIds: selectedNodeIds.value }
       });
     };
 
     const handleEdgeClick = (edgeId) => {
-      setSelectedEdgeId(edgeId);
-      setSelectedNodeId(null);
+      updateCanvasState({ selectedEdgeId: edgeId, selectedNodeIds: [] });
       
       emit('trigger-event', {
         name: 'edge-selected',
@@ -663,10 +846,12 @@ export default {
     const handleHandleMouseDown = (event, nodeId, handle) => {
       if (handle.type === 'source') {
         event.stopPropagation();
-        setDraggingConnection({
-          sourceNodeId: nodeId,
-          handle: handle,
-          sourceHandle: handle.id,
+        updateCanvasState({
+          draggingConnection: {
+            sourceNodeId: nodeId,
+            handle: handle,
+            sourceHandle: handle.id,
+          }
         });
       }
     };
@@ -701,21 +886,29 @@ export default {
           });
         }
         
-        setDraggingConnection(null);
+        updateCanvasState({ draggingConnection: null });
       }
     };
     //#endregion
 
     //#region Canvas Control Methods
     const addNode = (nodeData) => {
-      const newNode = {
+      let newNode = {
         id: generateUUID(),
         type: nodeData?.type || 'default',
         position: nodeData?.position || { x: 100, y: 100 },
         data: nodeData?.data || { label: 'New Node' },
       };
       
-      setNodes([...(nodes.value || []), newNode]);
+      // Apply tree layout positioning if enabled
+      if (props.content?.gridLayout === 'tree') {
+        const updatedNodes = [...(nodes.value || []), newNode];
+        const repositioned = calculateTreeLayout(updatedNodes, edges.value || []);
+        newNode = repositioned[repositioned.length - 1]; // Get the repositioned new node
+        updateCanvasState({ nodes: repositioned });
+      } else {
+        updateCanvasState({ nodes: [...(nodes.value || []), newNode] });
+      }
       
       emit('trigger-event', {
         name: 'node-added',
@@ -725,17 +918,21 @@ export default {
 
     const removeNode = (nodeId) => {
       // Remove node
-      setNodes((nodes.value || []).filter(n => n.id !== nodeId));
+      const updatedNodes = (nodes.value || []).filter(n => n.id !== nodeId);
       
       // Remove connected edges
-      setEdges((edges.value || []).filter(e => 
+      const updatedEdges = (edges.value || []).filter(e => 
         e.source !== nodeId && e.target !== nodeId
-      ));
+      );
       
       // Clear selection if deleted
-      if (selectedNodeId.value === nodeId) {
-        setSelectedNodeId(null);
-      }
+      const updatedSelectedIds = (selectedNodeIds.value || []).filter(id => id !== nodeId);
+      
+      updateCanvasState({ 
+        nodes: updatedNodes, 
+        edges: updatedEdges,
+        selectedNodeIds: updatedSelectedIds
+      });
       
       emit('trigger-event', {
         name: 'node-removed',
@@ -755,7 +952,7 @@ export default {
           ...updatedNodes[nodeIndex],
           data: { ...updatedNodes[nodeIndex].data, ...data }
         };
-        setNodes(updatedNodes);
+        updateCanvasState({ nodes: updatedNodes });
         
         emit('trigger-event', {
           name: 'node-updated',
@@ -772,7 +969,7 @@ export default {
           ...updatedNodes[nodeIndex],
           position: { x, y }
         };
-        setNodes(updatedNodes);
+        updateCanvasState({ nodes: updatedNodes });
       }
     };
 
@@ -785,18 +982,35 @@ export default {
         targetHandle: edgeData?.targetHandle,
       };
       
-      setEdges([...(edges.value || []), newEdge]);
+      const updatedEdges = [...(edges.value || []), newEdge];
+      updateCanvasState({ edges: updatedEdges });
+      
+      // Recalculate tree layout when edge is added
+      if (props.content?.gridLayout === 'tree' && nodes.value?.length) {
+        const repositionedNodes = calculateTreeLayout(nodes.value, updatedEdges);
+        updateCanvasState({ nodes: repositionedNodes });
+      }
       
       emit('trigger-event', {
         name: 'edge-added',
         event: { edge: newEdge }
       });
     };
+    
     const removeEdge = (edgeId) => {
-      setEdges((edges.value || []).filter(e => e.id !== edgeId));
+      const updatedEdges = (edges.value || []).filter(e => e.id !== edgeId);
       
+      const updates = { edges: updatedEdges };
       if (selectedEdgeId.value === edgeId) {
-        setSelectedEdgeId(null);
+        updates.selectedEdgeId = null;
+      }
+      
+      updateCanvasState(updates);
+      
+      // Recalculate tree layout when edge is removed
+      if (props.content?.gridLayout === 'tree' && nodes.value?.length) {
+        const repositionedNodes = calculateTreeLayout(nodes.value, updatedEdges);
+        updateCanvasState({ nodes: repositionedNodes });
       }
       
       emit('trigger-event', {
@@ -808,8 +1022,10 @@ export default {
     const handleZoomIn = () => {
       if (!viewport.value) return;
       const newZoom = Math.min((viewport.value.zoom || 1) + 0.1, props.content?.maxZoom || 2);
-      setViewport({ ...viewport.value, zoom: newZoom });
-      setZoomPercentage(Math.round(newZoom * 100));
+      updateCanvasState({ 
+        viewport: { ...viewport.value, zoom: newZoom },
+        zoomPercentage: Math.round(newZoom * 100)
+      });
       
       emit('trigger-event', {
         name: 'zoom-changed',
@@ -820,8 +1036,10 @@ export default {
     const handleZoomOut = () => {
       if (!viewport.value) return;
       const newZoom = Math.max((viewport.value.zoom || 1) - 0.1, props.content?.minZoom || 0.1);
-      setViewport({ ...viewport.value, zoom: newZoom });
-      setZoomPercentage(Math.round(newZoom * 100));
+      updateCanvasState({ 
+        viewport: { ...viewport.value, zoom: newZoom },
+        zoomPercentage: Math.round(newZoom * 100)
+      });
       
       emit('trigger-event', {
         name: 'zoom-changed',
@@ -851,8 +1069,10 @@ export default {
         const centerX = (containerRect.width - width * scale) / 2 - minX * scale;
         const centerY = (containerRect.height - height * scale) / 2 - minY * scale;
         
-        setViewport({ x: centerX, y: centerY, zoom: scale });
-        setZoomPercentage(Math.round(scale * 100));
+        updateCanvasState({ 
+          viewport: { x: centerX, y: centerY, zoom: scale },
+          zoomPercentage: Math.round(scale * 100)
+        });
         
         emit('trigger-event', {
           name: 'fit-view',
@@ -862,8 +1082,10 @@ export default {
     };
 
     const handleResetView = () => {
-      setViewport({ x: 0, y: 0, zoom: 1 });
-      setZoomPercentage(100);
+      updateCanvasState({ 
+        viewport: { x: 0, y: 0, zoom: 1 },
+        zoomPercentage: 100
+      });
       
       emit('trigger-event', {
         name: 'reset-view',
@@ -875,7 +1097,7 @@ export default {
     //#region Lifecycle
     onMounted(() => {
       // Initialize zoom percentage
-      setZoomPercentage(Math.round((viewport.value?.zoom || 1) * 100));
+      updateCanvasState({ zoomPercentage: Math.round((viewport.value?.zoom || 1) * 100) });
       
       // Add global mouse up listener for better drag handling
       document.addEventListener('mouseup', handleCanvasMouseUp);
@@ -889,13 +1111,21 @@ export default {
     //#region Watchers
     // Watch for property changes that should trigger re-render
     watch(() => [
-      props.content?.gridEnabled,
+      props.content?.showGrid,
       props.content?.gridPattern,
+      props.content?.gridLayout,
       props.content?.backgroundColor,
       props.content?.nodeBackgroundColor,
       props.content?.nodeBorderColor,
+      props.content?.selectedNodeBorderColor,
+      props.content?.handleColor,
+      props.content?.handleBorderColor,
+      props.content?.selectedHandleColor,
       props.content?.edgeColor,
-      props.content?.edgePathType,
+      props.content?.selectedEdgeColor,
+      props.content?.pathType,
+      props.content?.nodeDropzoneBackgroundColor,
+      props.content?.actionsDropzoneBackground,
     ], () => {
       // Visual properties - handled by computed styles
     }, { deep: true });
@@ -912,17 +1142,22 @@ export default {
       viewportStyle,
       dropZoneStyle,
       
-      // Data
+      // Data - Exposed from unified canvas state
+      canvasState,
       nodes,
       edges,
       viewport,
+      selectedNodeIds,
       selectedNodeId,
       selectedEdgeId,
       draggingConnection,
+      zoomPercentage,
+      
+      // Local state
       draggingNodeId,
       hoveredNodeId,
       mousePosition,
-      gridSize,
+      selectionBox,
       
       // Computed
       visibleEdges,
@@ -978,11 +1213,11 @@ export default {
   min-height: 400px;
   background: var(--canvas-bg);
   overflow: hidden;
-  cursor: grab;
+  cursor: default;
   user-select: none;
 
   &:active {
-    cursor: grabbing;
+    cursor: default;
   }
 }
 
@@ -1037,7 +1272,7 @@ export default {
 }
 
 .edge-selected .edge-path {
-  stroke: var(--node-selected);
+  stroke: var(--edge-selected);
   stroke-width: 3;
 }
 //#endregion
@@ -1060,7 +1295,7 @@ export default {
   }
 
   &.node-selected {
-    border-color: var(--node-selected);
+    border-color: var(--node-selected-border);
     box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
     z-index: 20;
   }
@@ -1159,14 +1394,19 @@ export default {
   width: 100%;
   height: 100%;
   background: var(--handle-bg);
-  border: 2px solid white;
+  border: 2px solid var(--handle-border);
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 
   .node-handle:hover & {
     transform: scale(1.3);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    background: var(--handle-selected);
+  }
+  
+  .node-selected .node-handle & {
+    background: var(--handle-selected);
   }
 }
 //#endregion
@@ -1298,6 +1538,16 @@ export default {
     width: 100%;
     justify-content: space-between;
   }
+}
+//#endregion
+
+//#region Multi-Selection Box
+.selection-box {
+  position: absolute;
+  border: 2px dashed #007aff;
+  background: rgba(0, 122, 255, 0.1);
+  pointer-events: none;
+  z-index: 999;
 }
 //#endregion
 </style>

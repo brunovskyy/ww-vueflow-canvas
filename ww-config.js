@@ -9,17 +9,10 @@ export default {
         label: "Canvas",
         isCollapsible: true,
         properties: [
+          "backgroundColor",
           "gridColor",
           "gridPattern",
-        ],
-      },
-      {
-        label: "Actions Panel",
-        isCollapsible: true,
-        properties: [
-          "enableZoomButton",
-          "enableFitButton",
-          "enableResetButton",
+          "gridLayout"
         ],
       },
       {
@@ -30,15 +23,25 @@ export default {
           "nodeBorderColor",
           "selectedNodeBorderColor",
           "handleColor",
+          "handleBorderColor",
+          "selectedHandleColor",
+          "nodeDropzoneBackgroundColor",
         ],
       },
       {
         label: "Edges",
         isCollapsible: true,
         properties: [
-          "selectedHandleColor",
           "edgeColor",
           "selectedEdgeColor",
+        ],
+      },
+      {
+        label: "Actions Panel",
+        isCollapsible: true,
+        properties: [
+          "actionsDropzoneHeight",
+          "actionsDropzoneBackground",
         ],
       },
     ],
@@ -50,7 +53,7 @@ export default {
           "showGrid",
           "snapToGrid",
           "enableZoom",
-          "enableSpan",
+          "enablePan",
           "minZoom",
           "maxZoom",
         ],
@@ -61,6 +64,7 @@ export default {
         properties: [
           "connectableNodes",
           "deletableNodes",
+          "nodeDropzoneEnabled",
           "initialNodes",
         ],
       },
@@ -70,6 +74,13 @@ export default {
         properties: [
           "pathType",
           "initialEdges",
+        ],
+      },
+      {
+        label: "Actions Panel",
+        isCollapsible: true,
+        properties: [
+          "actionsDropzoneEnabled",
         ],
       },
     ],
@@ -310,7 +321,7 @@ export default {
     //#endregion
 
     //#region Canvas Behavior
-    gridEnabled: {
+    showGrid: {
       label: { en: 'Show Grid' },
       type: 'OnOff',
       section: 'settings',
@@ -325,8 +336,24 @@ export default {
       /* wwEditor:end */
     },
 
-    zoomEnabled: {
-      label: { en: 'Enable Zoom/Pan' },
+    snapToGrid: {
+      label: { en: 'Snap to Grid' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: false,
+      bindable: true,
+      hidden: content => !content?.showGrid,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Snap nodes to grid when dragging'
+      },
+      propertyHelp: 'When enabled, nodes will snap to grid intersections when moved'
+      /* wwEditor:end */
+    },
+
+    enableZoom: {
+      label: { en: 'Enable Zoom' },
       type: 'OnOff',
       section: 'settings',
       defaultValue: true,
@@ -334,9 +361,24 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
-        tooltip: 'Enable zoom and pan interactions'
+        tooltip: 'Enable zoom interaction'
       },
-      propertyHelp: 'Allow users to zoom (mouse wheel) and pan (drag canvas) the view'
+      propertyHelp: 'Allow users to zoom (mouse wheel) the canvas view'
+      /* wwEditor:end */
+    },
+
+    enablePan: {
+      label: { en: 'Enable Pan' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Enable pan interaction'
+      },
+      propertyHelp: 'Allow users to pan (drag canvas) the view'
       /* wwEditor:end */
     },
 
@@ -349,7 +391,7 @@ export default {
       max: 1,
       step: 0.05,
       bindable: true,
-      hidden: content => !content?.zoomEnabled,
+      hidden: content => !content?.enableZoom,
       /* wwEditor:start */
       bindingValidation: {
         type: 'number',
@@ -367,7 +409,7 @@ export default {
       max: 5,
       step: 0.1,
       bindable: true,
-      hidden: content => !content?.zoomEnabled,
+      hidden: content => !content?.enableZoom,
       /* wwEditor:start */
       bindingValidation: {
         type: 'number',
@@ -375,22 +417,7 @@ export default {
       },
       /* wwEditor:end */
     },
-
-    snapToGrid: {
-      label: { en: 'Snap to Grid' },
-      type: 'OnOff',
-      section: 'settings',
-      defaultValue: false,
-      bindable: true,
-      hidden: content => !content?.gridEnabled,
-      /* wwEditor:start */
-      bindingValidation: {
-        type: 'boolean',
-        tooltip: 'Snap nodes to grid when dragging'
-      },
-      propertyHelp: 'When enabled, nodes will snap to grid intersections when moved'
-      /* wwEditor:end */
-    },
+    //#endregion
 
     connectableNodes: {
       label: { en: 'Connectable Nodes' },
@@ -422,7 +449,22 @@ export default {
       /* wwEditor:end */
     },
 
-    edgePathType: {
+    nodeDropzoneEnabled: {
+      label: { en: 'Enable Node Custom Content' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: false,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Enable custom content dropzone for nodes'
+      },
+      propertyHelp: 'When enabled, replaces default node cards with custom dropzone content. Handles remain visible for connections.'
+      /* wwEditor:end */
+    },
+
+    pathType: {
       label: { en: 'Edge Path Type' },
       type: 'TextSelect',
       section: 'settings',
@@ -444,9 +486,9 @@ export default {
     },
     //#endregion
 
-    //#region Dropzone Settings
-    dropZoneEnabled: {
-      label: { en: 'Enable Control Zone Dropzone' },
+    //#region Actions Dropzone Settings
+    actionsDropzoneEnabled: {
+      label: { en: 'Enable Actions Dropzone' },
       type: 'OnOff',
       section: 'settings',
       defaultValue: true,
@@ -454,30 +496,30 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'boolean',
-        tooltip: 'Show drop zone control area'
+        tooltip: 'Show actions control dropzone area'
       },
-      propertyHelp: 'Display a drop zone area for canvas controls and custom actions'
+      propertyHelp: 'Display a dropzone area for canvas controls, buttons, and custom actions'
       /* wwEditor:end */
     },
 
-    dropZoneContent: {
+    actionsDropzoneContent: {
       hidden: true,
       defaultValue: [],
       /* wwEditor:start */
       bindingValidation: {
         type: 'array',
-        tooltip: 'Array of elements to display in dropzone'
+        tooltip: 'Array of elements to display in actions dropzone'
       },
       /* wwEditor:end */
     },
 
-    dropZoneHeight: {
-      label: { en: 'Dropzone Height' },
+    actionsDropzoneHeight: {
+      label: { en: 'Actions Dropzone Height' },
       type: 'Length',
       section: 'style',
       defaultValue: '80px',
       bindable: true,
-      hidden: content => !content?.dropZoneEnabled,
+      hidden: content => !content?.actionsDropzoneEnabled,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -486,17 +528,45 @@ export default {
       /* wwEditor:end */
     },
 
-    dropZoneBackground: {
-      label: { en: 'Dropzone Background' },
+    actionsDropzoneBackground: {
+      label: { en: 'Actions Dropzone Background' },
       type: 'Color',
       section: 'style',
       defaultValue: '#f5f5f5',
       bindable: true,
-      hidden: content => !content?.dropZoneEnabled,
+      hidden: content => !content?.actionsDropzoneEnabled,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
-        tooltip: 'Background color for dropzone'
+        tooltip: 'Background color for actions dropzone'
+      },
+      /* wwEditor:end */
+    },
+    //#endregion
+
+    //#region Node Dropzone Settings
+    nodeDropzoneContent: {
+      hidden: true,
+      defaultValue: [],
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of elements to display inside node dropzone'
+      },
+      /* wwEditor:end */
+    },
+
+    nodeDropzoneBackgroundColor: {
+      label: { en: 'Node Dropzone Background' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: 'transparent',
+      bindable: true,
+      hidden: content => !content?.nodeDropzoneEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Background color for node custom content'
       },
       /* wwEditor:end */
     },
@@ -523,7 +593,7 @@ export default {
       section: 'style',
       defaultValue: '#e0e0e0',
       bindable: true,
-      hidden: content => !content?.gridEnabled,
+      hidden: content => !content?.showGrid,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -546,13 +616,34 @@ export default {
       },
       defaultValue: 'lines',
       bindable: true,
-      hidden: content => !content?.gridEnabled,
+      hidden: content => !content?.showGrid,
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
         tooltip: 'Valid values: lines | dots | cross | none'
       },
       propertyHelp: 'Choose the visual pattern for the background grid'
+      /* wwEditor:end */
+    },
+
+    gridLayout: {
+      label: { en: 'Grid Layout' },
+      type: 'TextSelect',
+      section: 'style',
+      options: {
+        options: [
+          { value: 'free', label: 'Free (Manual Positioning)' },
+          { value: 'tree', label: 'Tree (Hierarchical Auto-Layout)' }
+        ]
+      },
+      defaultValue: 'free',
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: free | tree'
+      },
+      propertyHelp: 'Choose layout mode: Free allows manual positioning, Tree automatically arranges nodes hierarchically based on connections'
       /* wwEditor:end */
     },
     //#endregion
@@ -586,8 +677,8 @@ export default {
       /* wwEditor:end */
     },
 
-    selectedNodeColor: {
-      label: { en: 'Selected Node Color' },
+    selectedNodeBorderColor: {
+      label: { en: 'Selected Node Border Color' },
       type: 'Color',
       section: 'style',
       defaultValue: '#007aff',
@@ -595,7 +686,7 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
-        tooltip: 'Highlight color for selected nodes'
+        tooltip: 'Border color for selected nodes'
       },
       /* wwEditor:end */
     },
@@ -614,9 +705,39 @@ export default {
       },
       /* wwEditor:end */
     },
+
+    handleBorderColor: {
+      label: { en: 'Handle Border Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#ffffff',
+      bindable: true,
+      hidden: content => !content?.connectableNodes,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Border color of connection handles'
+      },
+      /* wwEditor:end */
+    },
     //#endregion
 
     //#region Edge Styling
+    selectedHandleColor: {
+      label: { en: 'Selected Handle Color' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#0066ff',
+      bindable: true,
+      hidden: content => !content?.connectableNodes,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Color of handles when selected or active'
+      },
+      /* wwEditor:end */
+    },
+
     edgeColor: {
       label: { en: 'Edge Color' },
       type: 'Color',
