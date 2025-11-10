@@ -36,6 +36,38 @@ npm run build --name=ww-canvas-vueflow
 
 ---
 
+## 📐 Component Architecture
+
+### **Modular Structure**
+
+The component is built with a clean, maintainable architecture:
+
+```
+src/
+├── wwElement.vue              # Canvas wrapper (orchestrator)
+└── components/
+    ├── wwHandle.vue          # Connection handle component
+    ├── wwEdge.vue            # Edge rendering component
+    └── wwNode.vue            # Node rendering component
+```
+
+**Benefits:**
+- ✅ **Maintainable**: Each component ~90-230 lines (clear responsibilities)
+- ✅ **Testable**: Components can be tested in isolation
+- ✅ **Reusable**: Easy to extend for custom node/edge types
+- ✅ **Performant**: Optimized rendering per component
+
+**Component Responsibilities:**
+
+- **wwElement.vue**: Viewport, grid, state management, events
+- **wwNode.vue**: Individual node rendering, handles integration
+- **wwEdge.vue**: Connection paths (bezier/straight), selection
+- **wwHandle.vue**: Connection points on nodes (source/target)
+
+See `REFACTORING_SUMMARY.md` for detailed architecture documentation.
+
+---
+
 # 📋 IMPLEMENTATION SUMMARY
 
 ## ✅ What Was Implemented

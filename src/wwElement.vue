@@ -93,78 +93,41 @@
           fill="none"
         />
 
-        <!-- Rendered Edges -->
-        <g
+        <!-- Rendered Edges using wwEdge component -->
+        <wwEdge
           v-for="edge in visibleEdges"
           :key="edge.id"
-          :class="['edge-group', { 'edge-selected': selectedEdgeId === edge.id }]"
-          @click="handleEdgeClick(edge.id)"
-        >
-          <path
-            :d="getEdgePath(edge)"
-            class="edge-path"
-            :stroke="edge.selected ? content?.selectedEdgeColor || '#007aff' : content?.edgeColor || '#999'"
-            :stroke-width="edge.selected ? 3 : 2"
-            fill="none"
-          />
-          <!-- Edge Interaction Area (invisible, larger hitbox) -->
-          <path
-            :d="getEdgePath(edge)"
-            class="edge-hitbox"
-            stroke="transparent"
-            stroke-width="15"
-            fill="none"
-          />
-        </g>
+          :edge="edge"
+          :source-node="getNodeById(edge.source)"
+          :target-node="getNodeById(edge.target)"
+          :is-selected="selectedEdgeId === edge.id"
+          :path-type="content?.pathType || 'bezier'"
+          :config="edgeConfig"
+          @edge-click="handleEdgeClick"
+        />
       </svg>
       <!-- #endregion -->
 
       <!-- #region Nodes Layer -->
-      <div
+      <wwNode
         v-for="node in nodes"
         :key="node.id"
-        :class="['canvas-node', { 
-          'node-selected': selectedNodeIds?.includes(node.id),
-          'node-dragging': draggingNodeId === node.id,
-          'node-hovered': hoveredNodeId === node.id
-        }]"
-        :style="getNodeStyle(node)"
-        @mousedown.stop="handleNodeMouseDown($event, node.id)"
-        @mouseenter="hoveredNodeId = node.id"
-        @mouseleave="hoveredNodeId = null"
-        @click.stop="handleNodeClick($event, node.id)"
-      >
-        <!-- Node Handles -->
-        <div
-          v-for="handle in getNodeHandles(node)"
-          :key="handle.id"
-          :class="['node-handle', `handle-${handle.position}`, `handle-${handle.type}`, {
-            'handle-visible': hoveredNodeId === node.id || draggingConnection !== null
-          }]"
-          :style="getHandleStyle(handle)"
-          @mousedown.stop="handleHandleMouseDown($event, node.id, handle)"
-          @mouseup.stop="handleHandleMouseUp($event, node.id, handle)"
-        >
-          <div class="handle-dot" />
-        </div>
-
-        <!-- Node Content -->
-        <div class="node-content">
-          <div class="node-header">
-            <span class="node-title">{{ node?.data?.label || node?.data?.title || `Node ${node.id}` }}</span>
-            <button 
-              v-if="content?.deletableNodes"
-              class="node-delete"
-              @click.stop="deleteNode(node.id)"
-            >
-              ×
-            </button>
-          </div>
-          <div v-if="node?.data?.description" class="node-description">
-            {{ node.data.description }}
-          </div>
-        </div>
-      </div>
+        :node="node"
+        :is-selected="selectedNodeIds?.includes(node.id)"
+        :is-dragging="draggingNodeId === node.id"
+        :is-hovered="hoveredNodeId === node.id"
+        :viewport="viewport"
+        :config="nodeConfig"
+        :node-dropzone-enabled="content?.nodeDropzoneEnabled"
+        :connection-dragging="draggingConnection !== null"
+        @node-mousedown="handleNodeMouseDown"
+        @node-click="handleNodeClick"
+        @node-mouseenter="handleNodeMouseEnter"
+        @node-mouseleave="handleNodeMouseLeave"
+        @handle-mousedown="handleHandleMouseDown"
+        @handle-mouseup="handleHandleMouseUp"
+        @delete-node="deleteNode"
+      />
       <!-- #endregion -->
     </div>
     <!-- #endregion -->
@@ -239,6 +202,8 @@
 
 <script>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import wwNode from './components/wwNode.vue';
+import wwEdge from './components/wwEdge.vue';
 
 //#region Helper Functions
 /**
@@ -250,6 +215,10 @@ const generateUUID = () => {
 //#endregion
 
 export default {
+  components: {
+    wwNode,
+    wwEdge,
+  },
   props: {
     uid: { type: String, required: true },
     content: { type: Object, required: true },
@@ -550,50 +519,37 @@ export default {
         height: y2 - y1
       };
     });
+
+    // Config objects for child components
+    const nodeConfig = computed(() => ({
+      connectableNodes: props.content?.connectableNodes,
+      deletableNodes: props.content?.deletableNodes,
+      nodeBackgroundColor: props.content?.nodeBackgroundColor,
+      nodeBorderColor: props.content?.nodeBorderColor,
+      selectedNodeBorderColor: props.content?.selectedNodeBorderColor,
+      handleColor: props.content?.handleColor,
+      handleBorderColor: props.content?.handleBorderColor,
+      selectedHandleColor: props.content?.selectedHandleColor,
+      nodeDropzoneBackgroundColor: props.content?.nodeDropzoneBackgroundColor,
+    }));
+
+    const edgeConfig = computed(() => ({
+      edgeColor: props.content?.edgeColor,
+      selectedEdgeColor: props.content?.selectedEdgeColor,
+    }));
     //#endregion
 
-    //#region Node Methods
-    const getNodeStyle = (node) => {
-      return {
-        position: 'absolute',
-        left: `${node?.position?.x || 0}px`,
-        top: `${node?.position?.y || 0}px`,
-        transform: 'translate(-50%, -50%)',
-      };
+    //#region Helper Methods for Components
+    /**
+     * Get node by ID (used by wwEdge component)
+     */
+    const getNodeById = (nodeId) => {
+      return nodes.value?.find(n => n.id === nodeId) || null;
     };
 
-    const getNodeHandles = (node) => {
-      const nodeType = node?.type || 'default';
-      const connectable = props.content?.connectableNodes !== false;
-      
-      if (!connectable) return [];
-      
-      // Default handles configuration
-      const defaultHandles = [
-        { id: 'top', type: 'target', position: 'top' },
-        { id: 'bottom', type: 'source', position: 'bottom' },
-        { id: 'left', type: 'target', position: 'left' },
-        { id: 'right', type: 'source', position: 'right' },
-      ];
-      
-      // Custom handles from node data
-      if (node?.data?.handles && Array.isArray(node.data.handles)) {
-        return node.data.handles;
-      }
-      
-      return defaultHandles;
-    };
-
-    const getHandleStyle = (handle) => {
-      const positions = {
-        top: { top: '0', left: '50%', transform: 'translate(-50%, -50%)' },
-        bottom: { bottom: '0', left: '50%', transform: 'translate(-50%, 50%)' },
-        left: { left: '0', top: '50%', transform: 'translate(-50%, -50%)' },
-        right: { right: '0', top: '50%', transform: 'translate(50%, -50%)' },
-      };
-      return positions[handle.position] || positions.right;
-    };
-
+    /**
+     * Get handle position on a node (for connection preview)
+     */
     const getHandlePosition = (node, handle) => {
       const nodeX = node?.position?.x || 0;
       const nodeY = node?.position?.y || 0;
@@ -613,32 +569,10 @@ export default {
         y: nodeY + offset.y,
       };
     };
-    //#endregion
 
-    //#region Edge Methods
-    const getEdgePath = (edge) => {
-      const sourceNode = nodes.value?.find(n => n.id === edge.source);
-      const targetNode = nodes.value?.find(n => n.id === edge.target);
-      
-      if (!sourceNode || !targetNode) return '';
-      
-      // Find corresponding handles
-      const sourceHandle = edge.sourceHandle || 'bottom';
-      const targetHandle = edge.targetHandle || 'top';
-      
-      const sourcePos = getHandlePosition(sourceNode, { position: sourceHandle });
-      const targetPos = getHandlePosition(targetNode, { position: targetHandle });
-      
-      const pathType = props.content?.pathType || 'bezier';
-      
-      if (pathType === 'straight') {
-        return `M ${sourcePos.x} ${sourcePos.y} L ${targetPos.x} ${targetPos.y}`;
-      }
-      
-      // Bezier curve (default)
-      return createBezierPath(sourcePos, targetPos);
-    };
-
+    /**
+     * Create a Bezier curve path (for connection preview)
+     */
     const createBezierPath = (source, target) => {
       const dx = Math.abs(target.x - source.x);
       const dy = Math.abs(target.y - source.y);
@@ -801,7 +735,8 @@ export default {
       });
     };
 
-    const handleNodeMouseDown = (event, nodeId) => {
+    const handleNodeMouseDown = (payload) => {
+      const { event, nodeId } = payload;
       event.stopPropagation();
       draggingNodeId.value = nodeId;
       const node = nodes.value?.find(n => n.id === nodeId);
@@ -813,7 +748,8 @@ export default {
       }
     };
 
-    const handleNodeClick = (event, nodeId) => {
+    const handleNodeClick = (payload) => {
+      const { event, nodeId } = payload;
       event.stopPropagation();
       
       // Multi-select with Ctrl/Cmd
@@ -834,6 +770,14 @@ export default {
       });
     };
 
+    const handleNodeMouseEnter = (nodeId) => {
+      hoveredNodeId.value = nodeId;
+    };
+
+    const handleNodeMouseLeave = (nodeId) => {
+      hoveredNodeId.value = null;
+    };
+
     const handleEdgeClick = (edgeId) => {
       updateCanvasState({ selectedEdgeId: edgeId, selectedNodeIds: [] });
       
@@ -843,7 +787,8 @@ export default {
       });
     };
 
-    const handleHandleMouseDown = (event, nodeId, handle) => {
+    const handleHandleMouseDown = (payload) => {
+      const { event, nodeId, handle } = payload;
       if (handle.type === 'source') {
         event.stopPropagation();
         updateCanvasState({
@@ -856,7 +801,8 @@ export default {
       }
     };
 
-    const handleHandleMouseUp = (event, nodeId, handle) => {
+    const handleHandleMouseUp = (payload) => {
+      const { event, nodeId, handle } = payload;
       if (draggingConnection.value && handle.type === 'target') {
         event.stopPropagation();
         
@@ -1165,12 +1111,11 @@ export default {
       connectionPreviewPath,
       gridPatternFill,
       dotPositions,
+      nodeConfig,
+      edgeConfig,
       
-      // Methods
-      getNodeStyle,
-      getNodeHandles,
-      getHandleStyle,
-      getEdgePath,
+      // Helper methods for components
+      getNodeById,
       
       // Handlers
       handleCanvasMouseDown,
@@ -1179,6 +1124,8 @@ export default {
       handleWheel,
       handleNodeMouseDown,
       handleNodeClick,
+      handleNodeMouseEnter,
+      handleNodeMouseLeave,
       handleEdgeClick,
       handleHandleMouseDown,
       handleHandleMouseUp,
@@ -1252,162 +1199,10 @@ export default {
   z-index: 1;
 }
 
-.edge-group {
-  pointer-events: all;
-  cursor: pointer;
-}
-
-.edge-path {
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
-}
-
-.edge-hitbox {
-  pointer-events: stroke;
-}
-
 .edge-preview {
   stroke-dasharray: 5, 5;
   opacity: 0.6;
   pointer-events: none;
-}
-
-.edge-selected .edge-path {
-  stroke: var(--edge-selected);
-  stroke-width: 3;
-}
-//#endregion
-
-//#region Nodes
-.canvas-node {
-  position: absolute;
-  min-width: 120px;
-  min-height: 60px;
-  background: var(--node-bg);
-  border: 2px solid var(--node-border);
-  border-radius: 8px;
-  padding: 12px;
-  cursor: move;
-  z-index: 10;
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
-
-  &:hover {
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  }
-
-  &.node-selected {
-    border-color: var(--node-selected-border);
-    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.1);
-    z-index: 20;
-  }
-
-  &.node-dragging {
-    opacity: 0.8;
-    cursor: grabbing;
-  }
-}
-
-.node-content {
-  position: relative;
-  z-index: 1;
-}
-
-.node-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.node-title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #333;
-  flex: 1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.node-description {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-}
-
-.node-delete {
-  background: transparent;
-  border: none;
-  color: #999;
-  font-size: 20px;
-  line-height: 1;
-  cursor: pointer;
-  padding: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  transition: background 0.2s ease, color 0.2s ease;
-
-  &:hover {
-    background: rgba(255, 0, 0, 0.1);
-    color: #ff3b30;
-  }
-}
-//#endregion
-
-//#region Node Handles
-.node-handle {
-  position: absolute;
-  width: 12px;
-  height: 12px;
-  cursor: crosshair;
-  z-index: 100;
-  opacity: 0;
-  transition: opacity 0.2s ease, transform 0.2s ease;
-  pointer-events: none;
-  
-  &.handle-source {
-    cursor: crosshair;
-  }
-  
-  &.handle-target {
-    cursor: pointer;
-  }
-
-  // Show handles when node is hovered or connection is being dragged
-  &.handle-visible {
-    opacity: 1;
-    pointer-events: all;
-  }
-
-  // Also show when node is selected
-  .node-selected & {
-    opacity: 1;
-    pointer-events: all;
-  }
-}
-
-.handle-dot {
-  width: 100%;
-  height: 100%;
-  background: var(--handle-bg);
-  border: 2px solid var(--handle-border);
-  border-radius: 50%;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-
-  .node-handle:hover & {
-    transform: scale(1.3);
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
-    background: var(--handle-selected);
-  }
-  
-  .node-selected .node-handle & {
-    background: var(--handle-selected);
-  }
 }
 //#endregion
 
