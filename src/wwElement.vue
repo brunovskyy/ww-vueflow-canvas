@@ -15,6 +15,36 @@
       :style="gridStyle"
     >
       <defs>
+        <!-- Vignette Radial Gradient Mask -->
+        <radialGradient 
+          id="vignette-gradient" 
+          cx="50%" 
+          cy="50%" 
+          :r="content?.vignetteSize !== undefined ? `${content.vignetteSize}%` : '70%'"
+        >
+          <stop offset="0%" stop-opacity="1" stop-color="white" />
+          <stop 
+            offset="70%" 
+            :stop-opacity="content?.vignetteIntensity !== undefined ? (1 - (content.vignetteIntensity / 100) * 0.4) : 0.7" 
+            stop-color="white" 
+          />
+          <stop 
+            offset="90%" 
+            :stop-opacity="content?.vignetteIntensity !== undefined ? (1 - (content.vignetteIntensity / 100) * 0.7) : 0.4" 
+            stop-color="white" 
+          />
+          <stop 
+            offset="100%" 
+            :stop-opacity="content?.vignetteIntensity !== undefined ? (1 - (content.vignetteIntensity / 100) * 0.9) : 0.1" 
+            stop-color="white" 
+          />
+        </radialGradient>
+
+        <!-- Mask for applying vignette effect -->
+        <mask id="vignette-mask">
+          <rect width="100%" height="100%" fill="url(#vignette-gradient)" />
+        </mask>
+
         <!-- Lines Pattern (Squared Grid) -->
         <pattern 
           v-if="content?.gridPattern === 'lines' || !content?.gridPattern"
@@ -71,7 +101,8 @@
       <rect 
         width="100%" 
         height="100%" 
-        :fill="gridPatternFill" 
+        :fill="gridPatternFill"
+        :mask="content?.enableVignette !== false ? 'url(#vignette-mask)' : undefined"
       />
     </svg>
     <!-- #endregion -->
@@ -1233,6 +1264,9 @@ export default {
       props.content?.showGrid,
       props.content?.gridPattern,
       props.content?.gridLayout,
+      props.content?.enableVignette,
+      props.content?.vignetteIntensity,
+      props.content?.vignetteSize,
       props.content?.backgroundColor,
       props.content?.nodeBackgroundColor,
       props.content?.nodeBorderColor,

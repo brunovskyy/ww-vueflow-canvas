@@ -12,7 +12,10 @@ export default {
           "backgroundColor",
           "gridColor",
           "gridPattern",
-          "gridLayout"
+          "gridLayout",
+          "enableVignette",
+          "vignetteIntensity",
+          "vignetteSize"
         ],
       },
       {
@@ -1011,6 +1014,66 @@ export default {
         tooltip: 'Valid values: free | tree'
       },
       propertyHelp: 'Choose layout mode: Free allows manual positioning, Tree automatically arranges nodes hierarchically based on connections'
+      /* wwEditor:end */
+    },
+
+    enableVignette: {
+      label: { en: 'Enable Vignette Effect' },
+      type: 'OnOff',
+      section: 'style',
+      defaultValue: true,
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => !content?.showGrid,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Toggle vignette effect on grid'
+      },
+      propertyHelp: 'Creates an infinite board appearance by fading out the grid pattern towards the edges'
+      /* wwEditor:end */
+    },
+
+    vignetteIntensity: {
+      label: { en: 'Vignette Intensity' },
+      type: 'Number',
+      section: 'style',
+      defaultValue: 70,
+      min: 0,
+      max: 100,
+      step: 1,
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => !content?.showGrid || content?.enableVignette === false,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'number',
+        tooltip: 'Fade intensity from 0 (subtle) to 100 (strong)'
+      },
+      propertyHelp: 'Controls how strongly the grid fades at the edges. Higher values create a stronger fade effect.'
+      /* wwEditor:end */
+    },
+
+    vignetteSize: {
+      label: { en: 'Vignette Size' },
+      type: 'Number',
+      section: 'style',
+      defaultValue: 70,
+      min: 0,
+      max: 100,
+      step: 1,
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => !content?.showGrid || content?.enableVignette === false,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'number',
+        tooltip: 'Vignette radius from 0% to 100%'
+      },
+      propertyHelp: 'Controls the size of the vignette effect. Lower values create a smaller visible area (more fade), higher values show more grid.'
       /* wwEditor:end */
     },
     //#endregion
