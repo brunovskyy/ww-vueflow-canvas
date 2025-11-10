@@ -101,7 +101,9 @@
           :source-node="getNodeById(edge.source)"
           :target-node="getNodeById(edge.target)"
           :is-selected="selectedEdgeId === edge.id"
+          :is-dragging="isEdgeDragging(edge)"
           :path-type="content?.pathType || 'bezier'"
+          :all-nodes="nodes"
           :config="edgeConfig"
           @edge-click="handleEdgeClick"
         />
@@ -197,6 +199,26 @@
       </div>
     </div>
     <!-- #endregion -->
+
+    <!-- #region Selection Actions Menu -->
+    <SelectionActionsMenu
+      v-if="content?.selectionMenuEnabled"
+      :selected-nodes="selectedNodesData"
+      :selected-edges="selectedEdgesData"
+      :default-node-actions="content?.defaultNodeActions || []"
+      :default-edge-actions="content?.defaultEdgeActions || []"
+      :node-type-actions="nodeTypeActionsMap"
+      :mode="content?.selectionMenuMode || 'default'"
+      :enabled="content?.selectionMenuEnabled !== false"
+      :config="selectionMenuConfig"
+      :action-button-dropzones="content?.actionButtonDropzones || {}"
+      :canvas-rect="canvasRect"
+      :viewport="viewport"
+      @action-execute="handleActionExecute"
+      @menu-opened="handleSelectionMenuOpened"
+      @menu-closed="handleSelectionMenuClosed"
+    />
+    <!-- #endregion -->
   </div>
 </template>
 
@@ -204,6 +226,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import wwNode from './components/wwNode.vue';
 import wwEdge from './components/wwEdge.vue';
+import SelectionActionsMenu from './components/SelectionActionsMenu.vue';
 
 //#region Helper Functions
 /**
@@ -218,6 +241,7 @@ export default {
   components: {
     wwNode,
     wwEdge,
+    SelectionActionsMenu,
   },
   props: {
     uid: { type: String, required: true },
@@ -537,6 +561,45 @@ export default {
       edgeColor: props.content?.edgeColor,
       selectedEdgeColor: props.content?.selectedEdgeColor,
     }));
+
+    const selectionMenuConfig = computed(() => ({
+      selectionMenuBackground: props.content?.selectionMenuBackground,
+      selectionMenuBorderColor: props.content?.selectionMenuBorderColor,
+      selectionMenuOffset: props.content?.selectionMenuOffset,
+    }));
+
+    /**
+     * Get canvas bounding rect for menu positioning
+     */
+    const canvasRect = computed(() => {
+      return canvasContainer.value?.getBoundingClientRect() || null;
+    });
+
+    /**
+     * Get data for selected nodes
+     */
+    const selectedNodesData = computed(() => {
+      return nodes.value?.filter(n => selectedNodeIds.value?.includes(n.id)) || [];
+    });
+
+    /**
+     * Get data for selected edges
+     */
+    const selectedEdgesData = computed(() => {
+      const edgeId = selectedEdgeId.value;
+      if (!edgeId) return [];
+      const edge = edges.value?.find(e => e.id === edgeId);
+      return edge ? [edge] : [];
+    });
+
+    /**
+     * Node type actions map (inherited + specific)
+     */
+    const nodeTypeActionsMap = computed(() => {
+      // For now, return empty map - user can extend this
+      // Each node type would inherit from defaultNodeActions and add its own
+      return {};
+    });
     //#endregion
 
     //#region Helper Methods for Components
@@ -545,6 +608,13 @@ export default {
      */
     const getNodeById = (nodeId) => {
       return nodes.value?.find(n => n.id === nodeId) || null;
+    };
+
+    /**
+     * Check if edge is being dragged (connected nodes are dragging)
+     */
+    const isEdgeDragging = (edge) => {
+      return draggingNodeId.value === edge.source || draggingNodeId.value === edge.target;
     };
 
     /**
@@ -837,6 +907,107 @@ export default {
     };
     //#endregion
 
+    //#region Selection Menu Handlers
+    /**
+     * Handle action execution from selection menu
+     */
+    const handleActionExecute = ({ action, items, allSelected }) => {
+      const behaviorMode = props.content?.actionBehaviorMode || 'both';
+      
+      // Execute built-in behavior if enabled
+      if (behaviorMode === 'builtin' || behaviorMode === 'both') {
+        executeBuiltInAction(action, items);
+      }
+      
+      // Emit trigger event if enabled
+      if (behaviorMode === 'trigger' || behaviorMode === 'both') {
+        emit('trigger-event', {
+          name: 'action-executed',
+          event: {
+            actionId: action.id,
+            action,
+            items,
+            allSelected,
+          }
+        });
+      }
+    };
+
+    /**
+     * Execute built-in action behaviors
+     */
+    const executeBuiltInAction = (action, items) => {
+      switch (action.id) {
+        case 'delete':
+          items.forEach(item => {
+            if (item.type === 'node') {
+              removeNode(item.id);
+            } else if (item.type === 'edge') {
+              removeEdge(item.id);
+            }
+          });
+          break;
+        
+        case 'duplicate':
+          items.forEach(item => {
+            if (item.type === 'node') {
+              const node = item.data;
+              const newNode = {
+                ...node,
+                id: generateUUID(),
+                position: {
+                  x: (node?.position?.x || 0) + 50,
+                  y: (node?.position?.y || 0) + 50,
+                },
+                data: {
+                  ...node.data,
+                  label: `${node?.data?.label || 'Node'} (Copy)`,
+                },
+              };
+              addNode(newNode);
+            }
+          });
+          break;
+        
+        case 'lock':
+          // Future: Add locked state to nodes
+          console.log('Lock action:', items);
+          break;
+        
+        case 'unlock':
+          // Future: Remove locked state from nodes
+          console.log('Unlock action:', items);
+          break;
+        
+        case 'color':
+          // User should handle this via trigger event
+          break;
+        
+        case 'path-type':
+          // User should handle this via trigger event or UI
+          break;
+        
+        default:
+          // Custom actions handled by user via trigger events
+          break;
+      }
+    };
+
+    const handleSelectionMenuOpened = ({ selectedItems }) => {
+      emit('trigger-event', {
+        name: 'selection-menu-opened',
+        event: { selectedItems }
+      });
+    };
+
+    const handleSelectionMenuClosed = () => {
+      emit('trigger-event', {
+        name: 'selection-menu-closed',
+        event: {}
+      });
+    };
+    //#endregion
+
     //#region Canvas Control Methods
     const addNode = (nodeData) => {
       let newNode = {
@@ -1113,9 +1284,15 @@ export default {
       dotPositions,
       nodeConfig,
       edgeConfig,
+      selectionMenuConfig,
+      canvasRect,
+      selectedNodesData,
+      selectedEdgesData,
+      nodeTypeActionsMap,
       
       // Helper methods for components
       getNodeById,
+      isEdgeDragging,
       
       // Handlers
       handleCanvasMouseDown,
@@ -1129,6 +1306,9 @@ export default {
       handleEdgeClick,
       handleHandleMouseDown,
       handleHandleMouseUp,
+      handleActionExecute,
+      handleSelectionMenuOpened,
+      handleSelectionMenuClosed,
       
       // Canvas controls
       addNode,

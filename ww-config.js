@@ -37,6 +37,15 @@ export default {
         ],
       },
       {
+        label: "Selection Menu",
+        isCollapsible: true,
+        properties: [
+          "selectionMenuBackground",
+          "selectionMenuBorderColor",
+          "selectionMenuOffset",
+        ],
+      },
+      {
         label: "Actions Panel",
         isCollapsible: true,
         properties: [
@@ -74,6 +83,17 @@ export default {
         properties: [
           "pathType",
           "initialEdges",
+        ],
+      },
+      {
+        label: "Selection Actions Menu",
+        isCollapsible: true,
+        properties: [
+          "selectionMenuEnabled",
+          "selectionMenuMode",
+          "actionBehaviorMode",
+          "defaultNodeActions",
+          "defaultEdgeActions",
         ],
       },
       {
@@ -471,7 +491,9 @@ export default {
       options: {
         options: [
           { value: 'bezier', label: 'Bezier (Curved)' },
-          { value: 'straight', label: 'Straight' }
+          { value: 'straight', label: 'Straight' },
+          { value: 'step', label: 'Step (Orthogonal)' },
+          { value: 'step-smart', label: 'Step Smart (Collision Avoidance)' }
         ]
       },
       defaultValue: 'bezier',
@@ -479,9 +501,311 @@ export default {
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
-        tooltip: 'Valid values: bezier | straight'
+        tooltip: 'Valid values: bezier | straight | step | step-smart'
       },
-      propertyHelp: 'Choose the visual style for edges connecting nodes'
+      propertyHelp: 'Choose the visual style for edges. Step Smart uses pathfinding to avoid nodes but requires more processing.'
+      /* wwEditor:end */
+    },
+    //#endregion
+
+    //#region Selection Actions Menu Settings
+    selectionMenuEnabled: {
+      label: { en: 'Enable Selection Menu' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Show/hide the selection actions menu'
+      },
+      propertyHelp: 'Display a contextual menu when nodes or edges are selected'
+      /* wwEditor:end */
+    },
+
+    selectionMenuMode: {
+      label: { en: 'Menu Mode' },
+      type: 'TextSelect',
+      section: 'settings',
+      options: {
+        options: [
+          { value: 'default', label: 'Default (Built-in Buttons)' },
+          { value: 'custom', label: 'Custom (Dropzones)' }
+        ]
+      },
+      defaultValue: 'default',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: default | custom'
+      },
+      propertyHelp: 'Default shows built-in action buttons, Custom allows dropping your own button components'
+      /* wwEditor:end */
+    },
+
+    actionBehaviorMode: {
+      label: { en: 'Action Behavior' },
+      type: 'TextSelect',
+      section: 'settings',
+      options: {
+        options: [
+          { value: 'builtin', label: 'Built-in Only' },
+          { value: 'trigger', label: 'Trigger Event Only' },
+          { value: 'both', label: 'Both (Built-in + Trigger)' }
+        ]
+      },
+      defaultValue: 'both',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: builtin | trigger | both'
+      },
+      propertyHelp: 'Control how actions behave: execute built-in logic, emit trigger events, or both'
+      /* wwEditor:end */
+    },
+
+    defaultNodeActions: {
+      label: { en: 'Default Node Actions' },
+      type: 'Array',
+      section: 'settings',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      defaultValue: [
+        { id: 'edit', label: 'Edit', icon: 'edit', applicableTo: 'node', requiresSingleSelection: true },
+        { id: 'duplicate', label: 'Duplicate', icon: 'duplicate', applicableTo: 'node', requiresSingleSelection: false },
+        { id: 'delete', label: 'Delete', icon: 'delete', applicableTo: 'node', requiresSingleSelection: false },
+        { id: 'lock', label: 'Lock Position', icon: 'lock', applicableTo: 'node', requiresSingleSelection: false },
+        { id: 'color', label: 'Change Color', icon: 'color', applicableTo: 'node', requiresSingleSelection: false }
+      ],
+      options: {
+        expandable: true,
+        getItemLabel(item) {
+          return item?.label || item?.id || 'Action';
+        },
+        item: {
+          type: 'Object',
+          defaultValue: {
+            id: 'custom-action',
+            label: 'Custom Action',
+            icon: 'edit',
+            applicableTo: 'node',
+            requiresSingleSelection: false
+          },
+          options: {
+            item: {
+              id: {
+                label: { en: 'Action ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Unique identifier for this action'
+                },
+                /* wwEditor:end */
+              },
+              label: {
+                label: { en: 'Label' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Display label for the action'
+                },
+                /* wwEditor:end */
+              },
+              icon: {
+                label: { en: 'Icon' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'edit', label: '✎ Edit' },
+                    { value: 'delete', label: '🗑 Delete' },
+                    { value: 'duplicate', label: '⎘ Duplicate' },
+                    { value: 'lock', label: '🔒 Lock' },
+                    { value: 'unlock', label: '🔓 Unlock' },
+                    { value: 'color', label: '🎨 Color' },
+                    { value: 'path-type', label: '↝ Path Type' },
+                    { value: 'bring-front', label: '⬆ Bring Front' },
+                    { value: 'send-back', label: '⬇ Send Back' },
+                    { value: 'group', label: '⊡ Group' },
+                    { value: 'ungroup', label: '⊟ Ungroup' }
+                  ]
+                },
+                defaultValue: 'edit',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Icon identifier for the action'
+                },
+                /* wwEditor:end */
+              },
+              applicableTo: {
+                label: { en: 'Applicable To' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'node', label: 'Nodes Only' },
+                    { value: 'edge', label: 'Edges Only' },
+                    { value: 'both', label: 'Both' }
+                  ]
+                },
+                defaultValue: 'node',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'What this action applies to'
+                },
+                /* wwEditor:end */
+              },
+              requiresSingleSelection: {
+                label: { en: 'Single Selection Only' },
+                type: 'OnOff',
+                defaultValue: false,
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'boolean',
+                  tooltip: 'Action only works with one item selected'
+                },
+                /* wwEditor:end */
+              }
+            }
+          }
+        }
+      },
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of action objects for nodes'
+      },
+      propertyHelp: 'Define actions that appear for selected nodes'
+      /* wwEditor:end */
+    },
+
+    defaultEdgeActions: {
+      label: { en: 'Default Edge Actions' },
+      type: 'Array',
+      section: 'settings',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      defaultValue: [
+        { id: 'path-type', label: 'Change Path', icon: 'path-type', applicableTo: 'edge', requiresSingleSelection: false },
+        { id: 'delete', label: 'Delete', icon: 'delete', applicableTo: 'edge', requiresSingleSelection: false }
+      ],
+      options: {
+        expandable: true,
+        getItemLabel(item) {
+          return item?.label || item?.id || 'Action';
+        },
+        item: {
+          type: 'Object',
+          defaultValue: {
+            id: 'custom-action',
+            label: 'Custom Action',
+            icon: 'path-type',
+            applicableTo: 'edge',
+            requiresSingleSelection: false
+          },
+          options: {
+            item: {
+              id: {
+                label: { en: 'Action ID' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Unique identifier for this action'
+                },
+                /* wwEditor:end */
+              },
+              label: {
+                label: { en: 'Label' },
+                type: 'Text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Display label for the action'
+                },
+                /* wwEditor:end */
+              },
+              icon: {
+                label: { en: 'Icon' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'edit', label: '✎ Edit' },
+                    { value: 'delete', label: '🗑 Delete' },
+                    { value: 'duplicate', label: '⎘ Duplicate' },
+                    { value: 'lock', label: '🔒 Lock' },
+                    { value: 'unlock', label: '🔓 Unlock' },
+                    { value: 'color', label: '🎨 Color' },
+                    { value: 'path-type', label: '↝ Path Type' },
+                    { value: 'bring-front', label: '⬆ Bring Front' },
+                    { value: 'send-back', label: '⬇ Send Back' }
+                  ]
+                },
+                defaultValue: 'path-type',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Icon identifier for the action'
+                },
+                /* wwEditor:end */
+              },
+              applicableTo: {
+                label: { en: 'Applicable To' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'node', label: 'Nodes Only' },
+                    { value: 'edge', label: 'Edges Only' },
+                    { value: 'both', label: 'Both' }
+                  ]
+                },
+                defaultValue: 'edge',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'What this action applies to'
+                },
+                /* wwEditor:end */
+              },
+              requiresSingleSelection: {
+                label: { en: 'Single Selection Only' },
+                type: 'OnOff',
+                defaultValue: false,
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'boolean',
+                  tooltip: 'Action only works with one item selected'
+                },
+                /* wwEditor:end */
+              }
+            }
+          }
+        }
+      },
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'array',
+        tooltip: 'Array of action objects for edges'
+      },
+      propertyHelp: 'Define actions that appear for selected edges'
+      /* wwEditor:end */
+    },
+
+    actionButtonDropzones: {
+      hidden: true,
+      defaultValue: {},
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'object',
+        tooltip: 'Dropzones for custom action buttons (custom mode)'
+      },
       /* wwEditor:end */
     },
     //#endregion
@@ -765,6 +1089,51 @@ export default {
       },
       /* wwEditor:end */
     },
+
+    selectionMenuBackground: {
+      label: { en: 'Selection Menu Background' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#ffffff',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Background color of selection menu'
+      },
+      /* wwEditor:end */
+    },
+
+    selectionMenuBorderColor: {
+      label: { en: 'Selection Menu Border' },
+      type: 'Color',
+      section: 'style',
+      defaultValue: '#d0d0d0',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Border color of selection menu'
+      },
+      /* wwEditor:end */
+    },
+
+    selectionMenuOffset: {
+      label: { en: 'Selection Menu Offset' },
+      type: 'Length',
+      section: 'style',
+      defaultValue: '60px',
+      bindable: true,
+      hidden: content => !content?.selectionMenuEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Distance from selection center'
+      },
+      /* wwEditor:end */
+    },
   },
   //#endregion
 
@@ -864,6 +1233,30 @@ export default {
       event: {},
       /* wwEditor:start */
       description: 'Triggered when view is reset to default'
+      /* wwEditor:end */
+    },
+    {
+      name: 'action-executed',
+      label: { en: 'On Action Executed' },
+      event: { actionId: '', action: {}, items: [], allSelected: [] },
+      /* wwEditor:start */
+      description: 'Triggered when a selection menu action is executed'
+      /* wwEditor:end */
+    },
+    {
+      name: 'selection-menu-opened',
+      label: { en: 'On Selection Menu Opened' },
+      event: { selectedItems: [] },
+      /* wwEditor:start */
+      description: 'Triggered when selection menu appears'
+      /* wwEditor:end */
+    },
+    {
+      name: 'selection-menu-closed',
+      label: { en: 'On Selection Menu Closed' },
+      event: {},
+      /* wwEditor:start */
+      description: 'Triggered when selection menu closes'
       /* wwEditor:end */
     }
   ]

@@ -1,6 +1,9 @@
 <template>
   <g
-    :class="['edge-group', { 'edge-selected': isSelected }]"
+    :class="['edge-group', { 
+      'edge-selected': isSelected,
+      'edge-dragging': isDragging 
+    }]"
     @click="handleClick"
   >
     <!-- Visible Edge Path -->
@@ -10,6 +13,7 @@
       :stroke="edgeColor"
       :stroke-width="isSelected ? 3 : 2"
       fill="none"
+      :style="{ opacity: isDragging ? 0.3 : 1 }"
     />
     <!-- Edge Interaction Area (invisible, larger hitbox) -->
     <path
@@ -24,6 +28,7 @@
 
 <script>
 import { computed } from 'vue';
+import { getPath } from '../utils/pathTypes';
 
 export default {
   name: 'wwEdge',
@@ -47,10 +52,18 @@ export default {
       type: Boolean,
       default: false,
     },
+    isDragging: {
+      type: Boolean,
+      default: false,
+    },
     pathType: {
       type: String,
       default: 'bezier',
-      // 'bezier' | 'straight'
+      // 'bezier' | 'straight' | 'step' | 'step-smart'
+    },
+    allNodes: {
+      type: Array,
+      default: () => [],
     },
     config: {
       type: Object,
@@ -77,11 +90,8 @@ export default {
         props.edge?.targetHandle || 'top'
       );
 
-      if (props.pathType === 'straight') {
-        return createStraightPath(sourcePos, targetPos);
-      }
-
-      return createBezierPath(sourcePos, targetPos);
+      // Use the new path utility
+      return getPath(props.pathType, sourcePos, targetPos, props.allNodes);
     });
     //#endregion
 
@@ -108,29 +118,6 @@ export default {
         y: nodeY + offset.y,
       };
     };
-
-    /**
-     * Create a straight path between two points
-     */
-    const createStraightPath = (source, target) => {
-      return `M ${source.x} ${source.y} L ${target.x} ${target.y}`;
-    };
-
-    /**
-     * Create a Bezier curve path between two points
-     */
-    const createBezierPath = (source, target) => {
-      const dx = Math.abs(target.x - source.x);
-      const dy = Math.abs(target.y - source.y);
-      const offset = Math.min(dx, dy) * 0.5;
-
-      const cx1 = source.x;
-      const cy1 = source.y + offset;
-      const cx2 = target.x;
-      const cy2 = target.y - offset;
-
-      return `M ${source.x} ${source.y} C ${cx1} ${cy1}, ${cx2} ${cy2}, ${target.x} ${target.y}`;
-    };
     //#endregion
 
     //#region Event Handlers
@@ -155,7 +142,7 @@ export default {
 }
 
 .edge-path {
-  transition: stroke 0.2s ease, stroke-width 0.2s ease;
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, opacity 0.2s ease;
 }
 
 .edge-hitbox {
@@ -165,5 +152,9 @@ export default {
 .edge-selected .edge-path {
   stroke: var(--edge-selected, #007aff);
   stroke-width: 3;
+}
+
+.edge-dragging .edge-path {
+  opacity: 0.3;
 }
 </style>
