@@ -7,6 +7,8 @@
     @mousemove="handleCanvasMouseMove"
     @mouseup="handleCanvasMouseUp"
     @wheel="handleWheel"
+    @dblclick="handleCanvasDoubleClick"
+    @contextmenu="handleCanvasRightClick"
   >
     <!-- #region Background Grid -->
     <svg 
@@ -153,6 +155,7 @@
         :config="nodeConfig"
         :node-dropzone-enabled="content?.nodeDropzoneEnabled"
         :connection-dragging="draggingConnection !== null"
+        :allow-resize="content?.allowNodeResize !== false"
         @node-mousedown="handleNodeMouseDown"
         @node-click="handleNodeClick"
         @node-mouseenter="handleNodeMouseEnter"
@@ -160,6 +163,10 @@
         @handle-mousedown="handleHandleMouseDown"
         @handle-mouseup="handleHandleMouseUp"
         @delete-node="deleteNode"
+        @update-node="handleNodeUpdate"
+        @edit-media="handleEditMedia"
+        @edit-url="handleEditUrl"
+        @resize-node="handleNodeResize"
       />
       <!-- #endregion -->
     </div>
@@ -251,6 +258,54 @@
       @menu-closed="handleSelectionMenuClosed"
     />
     <!-- #endregion -->
+
+    <!-- #region Canvas Toolbar -->
+    <CanvasToolbar
+      v-if="content?.toolbarEnabled"
+      :enabled="content?.toolbarEnabled !== false"
+      :position="content?.toolbarPosition || 'top-left'"
+      @add-node="handleToolbarAddNode"
+    />
+    <!-- #endregion -->
+
+    <!-- #region Context Menu -->
+    <ContextMenu
+      :visible="contextMenuVisible"
+      :position="contextMenuPosition"
+      @add-node="handleContextMenuAddNode"
+      @paste="() => {}"
+      @close="handleContextMenuClose"
+    />
+    <!-- #endregion -->
+
+    <!-- #region Modals -->
+    <InputModal
+      :visible="mediaModalVisible"
+      title="Add Media"
+      input-label="Media URL"
+      placeholder="https://example.com/image.jpg"
+      submit-label="Add Media"
+      helper-text="Enter the URL of an image, video, or PDF"
+      :initial-value="modalInitialValue"
+      :initial-type="modalInitialType"
+      :show-type-selector="true"
+      @submit="handleMediaModalSubmit"
+      @close="handleModalClose"
+    />
+
+    <InputModal
+      :visible="urlModalVisible"
+      title="Add Web Page"
+      input-label="Web Page URL"
+      placeholder="https://example.com"
+      submit-label="Add URL"
+      helper-text="Enter the URL of the web page to embed"
+      :initial-value="modalInitialValue"
+      :show-type-selector="false"
+      @submit="handleUrlModalSubmit"
+      @close="handleModalClose"
+    />
+    <!-- #endregion -->
   </div>
 </template>
 
@@ -259,6 +314,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import wwNode from './components/wwNode.vue';
 import wwEdge from './components/wwEdge.vue';
 import SelectionActionsMenu from './components/SelectionActionsMenu.vue';
+import CanvasToolbar from './components/CanvasToolbar.vue';
+import ContextMenu from './components/ContextMenu.vue';
+import InputModal from './components/InputModal.vue';
+import { NODE_TYPES, createNodeData } from './utils/nodeTypes';
 
 //#region Helper Functions
 /**
@@ -274,6 +333,9 @@ export default {
     wwNode,
     wwEdge,
     SelectionActionsMenu,
+    CanvasToolbar,
+    ContextMenu,
+    InputModal,
   },
   props: {
     uid: { type: String, required: true },
@@ -322,6 +384,17 @@ export default {
     const isSelecting = ref(false);
     const selectionStart = ref({ x: 0, y: 0 });
     const selectionEnd = ref({ x: 0, y: 0 });
+
+    // Context menu state
+    const contextMenuVisible = ref(false);
+    const contextMenuPosition = ref({ x: 0, y: 0 });
+
+    // Modal state
+    const mediaModalVisible = ref(false);
+    const urlModalVisible = ref(false);
+    const editingNodeId = ref(null);
+    const modalInitialValue = ref('');
+    const modalInitialType = ref('image');
 
     /* wwEditor:start */
     const isEditing = computed(() => props.wwEditorState?.isEditing);
@@ -837,6 +910,173 @@ export default {
       });
     };
 
+    const handleCanvasDoubleClick = (event) => {
+      if (!canvasContainer.value || !viewport.value) return;
+
+      // Get click position in canvas coordinates
+      const rect = canvasContainer.value.getBoundingClientRect();
+      const x = (event.clientX - rect.left - (viewport.value.x || 0)) / (viewport.value.zoom || 1);
+      const y = (event.clientY - rect.top - (viewport.value.y || 0)) / (viewport.value.zoom || 1);
+
+      const nodeType = props.content?.doubleClickNodeType || NODE_TYPES.DEFAULT;
+      const newNode = {
+        type: nodeType,
+        position: { x, y },
+        data: createNodeData(nodeType),
+      };
+
+      addNode(newNode);
+
+      emit('trigger-event', {
+        name: 'double-click-canvas',
+        event: { position: { x, y }, node: newNode }
+      });
+    };
+
+    const handleCanvasRightClick = (event) => {
+      if (!props.content?.contextMenuEnabled) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+
+      if (canvasContainer.value) {
+        const rect = canvasContainer.value.getBoundingClientRect();
+        contextMenuPosition.value = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top,
+        };
+        contextMenuVisible.value = true;
+
+        emit('trigger-event', {
+          name: 'context-menu-opened',
+          event: { position: contextMenuPosition.value }
+        });
+      }
+    };
+
+    const handleContextMenuClose = () => {
+      contextMenuVisible.value = false;
+    };
+
+    const handleToolbarAddNode = ({ type }) => {
+      // Add node at center of viewport
+      const centerX = (-viewport.value.x + (canvasContainer.value?.clientWidth || 800) / 2) / viewport.value.zoom;
+      const centerY = (-viewport.value.y + (canvasContainer.value?.clientHeight || 600) / 2) / viewport.value.zoom;
+
+      const newNode = {
+        type,
+        position: { x: centerX, y: centerY },
+        data: createNodeData(type),
+      };
+
+      addNode(newNode);
+    };
+
+    const handleContextMenuAddNode = ({ type }) => {
+      // Add node at context menu position
+      const x = (contextMenuPosition.value.x - (viewport.value.x || 0)) / (viewport.value.zoom || 1);
+      const y = (contextMenuPosition.value.y - (viewport.value.y || 0)) / (viewport.value.zoom || 1);
+
+      const newNode = {
+        type,
+        position: { x, y },
+        data: createNodeData(type),
+      };
+
+      addNode(newNode);
+    };
+
+    const handleNodeUpdate = ({ nodeId, data }) => {
+      updateNode(nodeId, data);
+
+      // Emit content-edited event for text nodes
+      if (data.richTextContent !== undefined) {
+        emit('trigger-event', {
+          name: 'node-content-edited',
+          event: {
+            nodeId,
+            content: data.richTextContent,
+            node: nodes.value?.find(n => n.id === nodeId)
+          }
+        });
+      }
+    };
+
+    const handleNodeResize = ({ nodeId, width, height }) => {
+      updateNode(nodeId, { width, height });
+
+      emit('trigger-event', {
+        name: 'node-resized',
+        event: {
+          nodeId,
+          width,
+          height,
+          node: nodes.value?.find(n => n.id === nodeId)
+        }
+      });
+    };
+
+    const handleEditMedia = ({ nodeId, currentUrl, currentType }) => {
+      editingNodeId.value = nodeId;
+      modalInitialValue.value = currentUrl || '';
+      modalInitialType.value = currentType || 'image';
+      mediaModalVisible.value = true;
+    };
+
+    const handleEditUrl = ({ nodeId, currentUrl }) => {
+      editingNodeId.value = nodeId;
+      modalInitialValue.value = currentUrl || '';
+      urlModalVisible.value = true;
+    };
+
+    const handleMediaModalSubmit = ({ url, type }) => {
+      if (editingNodeId.value) {
+        updateNode(editingNodeId.value, {
+          mediaUrl: url,
+          mediaType: type,
+        });
+
+        emit('trigger-event', {
+          name: 'media-changed',
+          event: {
+            nodeId: editingNodeId.value,
+            mediaUrl: url,
+            mediaType: type,
+            node: nodes.value?.find(n => n.id === editingNodeId.value)
+          }
+        });
+      }
+
+      mediaModalVisible.value = false;
+      editingNodeId.value = null;
+    };
+
+    const handleUrlModalSubmit = ({ url }) => {
+      if (editingNodeId.value) {
+        updateNode(editingNodeId.value, {
+          webUrl: url,
+        });
+
+        emit('trigger-event', {
+          name: 'url-changed',
+          event: {
+            nodeId: editingNodeId.value,
+            url,
+            node: nodes.value?.find(n => n.id === editingNodeId.value)
+          }
+        });
+      }
+
+      urlModalVisible.value = false;
+      editingNodeId.value = null;
+    };
+
+    const handleModalClose = () => {
+      mediaModalVisible.value = false;
+      urlModalVisible.value = false;
+      editingNodeId.value = null;
+    };
+
     const handleNodeMouseDown = (payload) => {
       const { event, nodeId } = payload;
       event.stopPropagation();
@@ -1289,6 +1529,13 @@ export default {
       hoveredNodeId,
       mousePosition,
       selectionBox,
+      contextMenuVisible,
+      contextMenuPosition,
+      mediaModalVisible,
+      urlModalVisible,
+      editingNodeId,
+      modalInitialValue,
+      modalInitialType,
       
       // Computed
       visibleEdges,
@@ -1313,6 +1560,18 @@ export default {
       handleCanvasMouseMove,
       handleCanvasMouseUp,
       handleWheel,
+      handleCanvasDoubleClick,
+      handleCanvasRightClick,
+      handleContextMenuClose,
+      handleToolbarAddNode,
+      handleContextMenuAddNode,
+      handleNodeUpdate,
+      handleNodeResize,
+      handleEditMedia,
+      handleEditUrl,
+      handleMediaModalSubmit,
+      handleUrlModalSubmit,
+      handleModalClose,
       handleNodeMouseDown,
       handleNodeClick,
       handleNodeMouseEnter,

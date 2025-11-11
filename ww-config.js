@@ -107,6 +107,23 @@ export default {
           "actionsDropzoneEnabled",
         ],
       },
+      {
+        label: "Toolbar",
+        isCollapsible: true,
+        properties: [
+          "toolbarEnabled",
+          "toolbarPosition",
+        ],
+      },
+      {
+        label: "Interactions",
+        isCollapsible: true,
+        properties: [
+          "contextMenuEnabled",
+          "doubleClickNodeType",
+          "allowNodeResize",
+        ],
+      },
     ],
   },
   //#region Properties
@@ -172,13 +189,22 @@ export default {
               },
               type: {
                 label: { en: 'Node Type' },
-                type: 'Text',
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'default', label: 'Flow Node' },
+                    { value: 'text', label: 'Text Note' },
+                    { value: 'media', label: 'Media' },
+                    { value: 'web', label: 'Web Page' }
+                  ]
+                },
                 defaultValue: 'default',
                 /* wwEditor:start */
                 bindingValidation: {
                   type: 'string',
-                  tooltip: 'Type of node (default, input, output, process)'
+                  tooltip: 'Valid values: default | text | media | web'
                 },
+                propertyHelp: 'Choose the type of node: Flow (default diagrams), Text (rich notes), Media (images/video), or Web (embedded pages)'
                 /* wwEditor:end */
               },
               positionX: {
@@ -223,6 +249,93 @@ export default {
                   type: 'string',
                   tooltip: 'Optional description text'
                 },
+                /* wwEditor:end */
+              },
+              // Text Node Fields
+              richTextContent: {
+                label: { en: 'Rich Text Content' },
+                type: 'LongText',
+                defaultValue: '<p>Start typing...</p>',
+                hidden: (item) => item?.type !== 'text',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'HTML content for text nodes'
+                },
+                propertyHelp: 'Rich text content for text note nodes'
+                /* wwEditor:end */
+              },
+              // Media Node Fields
+              mediaUrl: {
+                label: { en: 'Media URL' },
+                type: 'Text',
+                defaultValue: '',
+                hidden: (item) => item?.type !== 'media',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'URL of the media file'
+                },
+                propertyHelp: 'URL of the image, video, or PDF to display'
+                /* wwEditor:end */
+              },
+              mediaType: {
+                label: { en: 'Media Type' },
+                type: 'TextSelect',
+                options: {
+                  options: [
+                    { value: 'image', label: 'Image' },
+                    { value: 'video', label: 'Video' },
+                    { value: 'pdf', label: 'PDF' }
+                  ]
+                },
+                defaultValue: 'image',
+                hidden: (item) => item?.type !== 'media',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'Valid values: image | video | pdf'
+                },
+                propertyHelp: 'Type of media to display'
+                /* wwEditor:end */
+              },
+              // Web Node Fields
+              webUrl: {
+                label: { en: 'Web URL' },
+                type: 'Text',
+                defaultValue: '',
+                hidden: (item) => item?.type !== 'web',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'URL of the web page to embed'
+                },
+                propertyHelp: 'URL of the web page to display in iframe'
+                /* wwEditor:end */
+              },
+              // Sizing Fields (for all types)
+              width: {
+                label: { en: 'Node Width' },
+                type: 'Length',
+                defaultValue: '200px',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'CSS width value'
+                },
+                propertyHelp: 'Custom width for the node'
+                /* wwEditor:end */
+              },
+              height: {
+                label: { en: 'Node Height' },
+                type: 'Length',
+                defaultValue: '100px',
+                /* wwEditor:start */
+                bindingValidation: {
+                  type: 'string',
+                  tooltip: 'CSS height value'
+                },
+                propertyHelp: 'Custom height for the node'
                 /* wwEditor:end */
               }
             }
@@ -505,6 +618,114 @@ export default {
       propertyHelp: 'When enabled, replaces default node cards with custom dropzone content. Handles remain visible for connections.'
       /* wwEditor:end */
     },
+
+    //#region Toolbar Configuration
+    toolbarEnabled: {
+      label: { en: 'Show Toolbar' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      states: true,
+      classes: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Show/hide the canvas toolbar'
+      },
+      propertyHelp: 'Display toolbar with buttons to add different node types'
+      /* wwEditor:end */
+    },
+
+    toolbarPosition: {
+      label: { en: 'Toolbar Position' },
+      type: 'TextSelect',
+      section: 'settings',
+      options: {
+        options: [
+          { value: 'top-left', label: 'Top Left' },
+          { value: 'top-center', label: 'Top Center' },
+          { value: 'top-right', label: 'Top Right' },
+          { value: 'bottom-left', label: 'Bottom Left' },
+          { value: 'bottom-center', label: 'Bottom Center' },
+          { value: 'bottom-right', label: 'Bottom Right' }
+        ]
+      },
+      defaultValue: 'top-left',
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => !content?.toolbarEnabled,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: top-left | top-center | top-right | bottom-left | bottom-center | bottom-right'
+      },
+      propertyHelp: 'Position of the toolbar on the canvas'
+      /* wwEditor:end */
+    },
+    //#endregion
+
+    //#region Interaction Configuration
+    contextMenuEnabled: {
+      label: { en: 'Enable Context Menu' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      states: true,
+      classes: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Enable right-click context menu'
+      },
+      propertyHelp: 'Show context menu on right-click for creating nodes'
+      /* wwEditor:end */
+    },
+
+    doubleClickNodeType: {
+      label: { en: 'Double-Click Node Type' },
+      type: 'TextSelect',
+      section: 'settings',
+      options: {
+        options: [
+          { value: 'default', label: 'Flow Node' },
+          { value: 'text', label: 'Text Note' },
+          { value: 'media', label: 'Media' },
+          { value: 'web', label: 'Web Page' }
+        ]
+      },
+      defaultValue: 'default',
+      bindable: true,
+      states: true,
+      classes: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: default | text | media | web'
+      },
+      propertyHelp: 'Type of node created when double-clicking the canvas'
+      /* wwEditor:end */
+    },
+
+    allowNodeResize: {
+      label: { en: 'Allow Node Resizing' },
+      type: 'OnOff',
+      section: 'settings',
+      defaultValue: true,
+      bindable: true,
+      states: true,
+      classes: true,
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'boolean',
+        tooltip: 'Enable node resizing handles'
+      },
+      propertyHelp: 'Allow users to resize nodes by dragging resize handles'
+      /* wwEditor:end */
+    },
+    //#endregion
 
     pathType: {
       label: { en: 'Edge Path Type' },
@@ -1403,6 +1624,62 @@ export default {
       event: {},
       /* wwEditor:start */
       description: 'Triggered when selection menu closes'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-type-changed',
+      label: { en: 'On Node Type Changed' },
+      event: { nodeId: '', oldType: '', newType: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a node type is converted'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-content-edited',
+      label: { en: 'On Node Content Edited' },
+      event: { nodeId: '', content: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when text node content is edited'
+      /* wwEditor:end */
+    },
+    {
+      name: 'media-changed',
+      label: { en: 'On Media Changed' },
+      event: { nodeId: '', mediaUrl: '', mediaType: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when media node URL or type is changed'
+      /* wwEditor:end */
+    },
+    {
+      name: 'url-changed',
+      label: { en: 'On URL Changed' },
+      event: { nodeId: '', url: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when web node URL is changed'
+      /* wwEditor:end */
+    },
+    {
+      name: 'node-resized',
+      label: { en: 'On Node Resized' },
+      event: { nodeId: '', width: '', height: '', node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when a node is resized'
+      /* wwEditor:end */
+    },
+    {
+      name: 'double-click-canvas',
+      label: { en: 'On Double-Click Canvas' },
+      event: { position: {}, node: {} },
+      /* wwEditor:start */
+      description: 'Triggered when canvas is double-clicked (node created)'
+      /* wwEditor:end */
+    },
+    {
+      name: 'context-menu-opened',
+      label: { en: 'On Context Menu Opened' },
+      event: { position: {} },
+      /* wwEditor:start */
+      description: 'Triggered when right-click context menu opens'
       /* wwEditor:end */
     }
   ]
