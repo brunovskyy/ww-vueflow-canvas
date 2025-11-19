@@ -392,6 +392,12 @@ export default {
     const isSelecting = ref(false);
     const selectionStart = ref({ x: 0, y: 0 });
     const selectionEnd = ref({ x: 0, y: 0 });
+    
+    // CRITICAL: Unified mouse operation state management
+    const activeDragOperation = ref(null); // 'edge' | 'node' | 'resize' | 'selection' | 'pan' | null
+    const edgeCreationState = ref('idle'); // 'idle' | 'potential-drag' | 'dragging'
+    const dragStartPosition = ref(null); // Track initial mouse position for drag threshold
+    const DRAG_THRESHOLD = 5; // Minimum pixels moved before considering it a drag
 
     // Context menu state
     const contextMenuVisible = ref(false);
@@ -484,16 +490,16 @@ export default {
         const levelNum = Number(level);
         
         if (isHorizontal) {
-          // Horizontal: Left to Right
+          // Horizontal: Left to Right (levels progress along X-axis)
           const totalHeight = nodesAtLevel.length * nodeSpacing.vertical;
-          const startY = -totalHeight / 2 + nodeSpacing.vertical / 2;
+          const startY = -totalHeight / 2 + nodeSpacing.vertical / 2 + 300; // Center vertically with offset
           
           nodesAtLevel.forEach((node, index) => {
             positionedNodes.push({
               ...node,
               position: {
-                x: levelNum * nodeSpacing.horizontal + 100,
-                y: startY + (index * nodeSpacing.vertical)
+                x: levelNum * nodeSpacing.horizontal + 100, // Levels go left to right
+                y: startY + (index * nodeSpacing.vertical)  // Items in level stack vertically
               },
               data: {
                 ...node.data,
@@ -502,16 +508,16 @@ export default {
             });
           });
         } else {
-          // Vertical: Top to Bottom
+          // Vertical: Top to Bottom (levels progress along Y-axis)
           const totalWidth = nodesAtLevel.length * nodeSpacing.horizontal;
-          const startX = -totalWidth / 2 + nodeSpacing.horizontal / 2;
+          const startX = -totalWidth / 2 + nodeSpacing.horizontal / 2 + 400; // Center horizontally with offset
           
           nodesAtLevel.forEach((node, index) => {
             positionedNodes.push({
               ...node,
               position: {
-                x: startX + (index * nodeSpacing.horizontal),
-                y: levelNum * nodeSpacing.vertical + 100
+                x: startX + (index * nodeSpacing.horizontal), // Items in level spread horizontally
+                y: levelNum * nodeSpacing.vertical + 100      // Levels go top to bottom
               },
               data: {
                 ...node.data,
@@ -583,20 +589,32 @@ export default {
     //#endregion
 
     //#region Computed Styles
-    const canvasStyle = computed(() => ({
-      '--canvas-bg': props.content?.backgroundColor || '#ffffff',
-      '--node-bg': props.content?.nodeBackgroundColor || '#f9f9f9',
-      '--node-border': props.content?.nodeBorderColor || '#d0d0d0',
-      '--node-selected-border': props.content?.selectedNodeBorderColor || '#007aff',
-      '--handle-bg': props.content?.handleColor || '#007aff',
-      '--handle-border': props.content?.handleBorderColor || '#ffffff',
-      '--handle-selected': props.content?.selectedHandleColor || '#0066ff',
-      '--edge-color': props.content?.edgeColor || '#999999',
-      '--edge-selected': props.content?.selectedEdgeColor || '#007aff',
-      '--node-dropzone-bg': props.content?.nodeDropzoneBackgroundColor || 'transparent',
-      width: '100%',
-      height: '100%',
-    }));
+    const canvasStyle = computed(() => {
+      // Dynamic cursor based on active operation
+      let cursor = 'default';
+      if (activeDragOperation.value === 'pan') cursor = 'grabbing';
+      else if (activeDragOperation.value === 'node') cursor = 'grabbing';
+      else if (activeDragOperation.value === 'edge') cursor = 'crosshair';
+      else if (activeDragOperation.value === 'selection') cursor = 'crosshair';
+      else if (isPanning.value) cursor = 'grabbing';
+      
+      return {
+        '--canvas-bg': props.content?.backgroundColor || '#ffffff',
+        '--node-bg': props.content?.nodeBackgroundColor || '#f9f9f9',
+        '--node-border': props.content?.nodeBorderColor || '#d0d0d0',
+        '--node-selected-border': props.content?.selectedNodeBorderColor || '#007aff',
+        '--handle-bg': props.content?.handleColor || '#007aff',
+        '--handle-border': props.content?.handleBorderColor || '#ffffff',
+        '--handle-selected': props.content?.selectedHandleColor || '#0066ff',
+        '--edge-color': props.content?.edgeColor || '#999999',
+        '--edge-selected': props.content?.selectedEdgeColor || '#007aff',
+        '--node-dropzone-bg': props.content?.nodeDropzoneBackgroundColor || 'transparent',
+        width: '100%',
+        height: '100%',
+        cursor,
+        userSelect: activeDragOperation.value ? 'none' : 'auto',
+      };
+    });
 
     const gridStyle = computed(() => ({
       position: 'absolute',
@@ -798,10 +816,16 @@ export default {
 
     //#region Interaction Handlers
     const handleCanvasMouseDown = (event) => {
+      // CRITICAL: Don't allow new operations while one is active
+      if (activeDragOperation.value && activeDragOperation.value !== 'idle') {
+        return;
+      }
+      
       // Middle-click (button 1) for panning
       if (event.button === 1 && props.content?.enablePan !== false) {
         event.preventDefault();
         isPanning.value = true;
+        activeDragOperation.value = 'pan';
         panStart.value = {
           x: event.clientX - (viewport.value?.x || 0),
           y: event.clientY - (viewport.value?.y || 0),
@@ -812,6 +836,7 @@ export default {
       // Left-click (button 0) on canvas background for multi-select
       if (event.button === 0 && (event.target === canvasContainer.value || event.target.closest('.canvas-grid') || event.target.closest('.canvas-viewport'))) {
         isSelecting.value = true;
+        activeDragOperation.value = 'selection';
         
         if (canvasContainer.value && viewport.value) {
           const rect = canvasContainer.value.getBoundingClientRect();
@@ -842,6 +867,28 @@ export default {
           x: event.clientX - rect.left,
           y: event.clientY - rect.top
         };
+      }
+      
+      // CRITICAL: Handle edge creation with drag threshold
+      if (edgeCreationState.value === 'potential-drag' && dragStartPosition.value) {
+        const dx = event.clientX - dragStartPosition.value.x;
+        const dy = event.clientY - dragStartPosition.value.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        // Only start actually dragging the edge after threshold is met
+        if (distance >= DRAG_THRESHOLD) {
+          edgeCreationState.value = 'dragging';
+          activeDragOperation.value = 'edge';
+          
+          // NOW we can show the connection preview
+          updateCanvasState({
+            draggingConnection: {
+              sourceNodeId: dragStartPosition.value.sourceNodeId,
+              handle: dragStartPosition.value.handle,
+              sourceHandle: dragStartPosition.value.sourceHandle,
+            }
+          });
+        }
       }
       
       // Handle panning (middle-click)
@@ -911,12 +958,15 @@ export default {
     };
 
     const handleCanvasMouseUp = () => {
+      // CRITICAL: Clean up all active operations
       if (isPanning.value) {
         isPanning.value = false;
+        activeDragOperation.value = null;
       }
       
       if (isSelecting.value) {
         isSelecting.value = false;
+        activeDragOperation.value = null;
       }
       
       if (draggingNodeId.value) {
@@ -929,11 +979,16 @@ export default {
           }
         });
         draggingNodeId.value = null;
+        activeDragOperation.value = null;
       }
       
-      if (draggingConnection.value) {
+      // CRITICAL: Only cancel edge creation if we're not over a valid target
+      if (edgeCreationState.value !== 'idle') {
         // Connection attempt ended without target
+        edgeCreationState.value = 'idle';
+        dragStartPosition.value = null;
         updateCanvasState({ draggingConnection: null });
+        activeDragOperation.value = null;
       }
     };
 
@@ -1053,6 +1108,9 @@ export default {
 
     const handleNodeResize = ({ nodeId, width, height }) => {
       updateNode(nodeId, { width, height });
+      
+      // CRITICAL: Clean up resize operation state
+      activeDragOperation.value = null;
 
       emit('trigger-event', {
         name: 'node-resized',
@@ -1127,9 +1185,23 @@ export default {
     };
 
     const handleNodeMouseDown = (payload) => {
-      const { event, nodeId } = payload;
+      const { event, nodeId, isResize } = payload;
+      
+      // CRITICAL: If this is a resize operation, set different state
+      if (isResize) {
+        activeDragOperation.value = 'resize';
+        return;
+      }
+      
+      // CRITICAL: Don't allow node drag if another operation is active
+      if (activeDragOperation.value && activeDragOperation.value !== 'idle') {
+        return;
+      }
+      
       event.stopPropagation();
       draggingNodeId.value = nodeId;
+      activeDragOperation.value = 'node';
+      
       const node = nodes.value?.find(n => n.id === nodeId);
       if (node) {
         dragOffset.value = {
@@ -1180,22 +1252,39 @@ export default {
 
     const handleHandleMouseDown = (payload) => {
       const { event, nodeId, handle } = payload;
-      if (handle.type === 'source') {
-        event.stopPropagation();
-        updateCanvasState({
-          draggingConnection: {
-            sourceNodeId: nodeId,
-            handle: handle,
-            sourceHandle: handle.id,
-          }
-        });
+      
+      // CRITICAL: Only allow edge creation from source handles
+      if (handle.type !== 'source') return;
+      
+      // CRITICAL: Don't allow edge creation if another operation is active
+      if (activeDragOperation.value && activeDragOperation.value !== 'idle') {
+        return;
       }
+      
+      event.stopPropagation();
+      event.preventDefault();
+      
+      // CRITICAL: Set to potential-drag state, not dragging yet
+      edgeCreationState.value = 'potential-drag';
+      dragStartPosition.value = {
+        x: event.clientX,
+        y: event.clientY
+      };
+      
+      // Store the connection data but DON'T set draggingConnection yet
+      // This prevents the edge from appearing until actual dragging starts
+      dragStartPosition.value.sourceNodeId = nodeId;
+      dragStartPosition.value.handle = handle;
+      dragStartPosition.value.sourceHandle = handle.id;
     };
 
     const handleHandleMouseUp = (payload) => {
       const { event, nodeId, handle } = payload;
-      if (draggingConnection.value && handle.type === 'target') {
+      
+      // CRITICAL: Only create edge if we're actually in dragging state (not just potential-drag)
+      if (edgeCreationState.value === 'dragging' && draggingConnection.value && handle.type === 'target') {
         event.stopPropagation();
+        event.preventDefault();
         
         // Create new edge
         const newEdge = {
@@ -1223,7 +1312,16 @@ export default {
           });
         }
         
+        // Clean up edge creation state
+        edgeCreationState.value = 'idle';
+        dragStartPosition.value = null;
         updateCanvasState({ draggingConnection: null });
+        activeDragOperation.value = null;
+      } else if (edgeCreationState.value === 'potential-drag') {
+        // User clicked but didn't drag - cancel the operation
+        edgeCreationState.value = 'idle';
+        dragStartPosition.value = null;
+        activeDragOperation.value = null;
       }
     };
     //#endregion
@@ -1533,22 +1631,143 @@ export default {
     //#endregion
 
     //#region Lifecycle
+    // CRITICAL: Global mouse handlers for cursor lock and robust cleanup
+    const handleGlobalMouseMove = (event) => {
+      // When an operation is active, continue tracking mouse even outside canvas
+      if (activeDragOperation.value) {
+        handleCanvasMouseMove(event);
+      }
+    };
+    
+    const handleGlobalMouseUp = (event) => {
+      // Always clean up on global mouseup for robust state management
+      handleCanvasMouseUp(event);
+    };
+    
+    const handleEscapeKey = (event) => {
+      // ESC key cancels any active operation
+      if (event.key === 'Escape' && activeDragOperation.value) {
+        // Cancel all operations
+        isPanning.value = false;
+        isSelecting.value = false;
+        draggingNodeId.value = null;
+        edgeCreationState.value = 'idle';
+        dragStartPosition.value = null;
+        updateCanvasState({ draggingConnection: null });
+        activeDragOperation.value = null;
+        
+        emit('trigger-event', {
+          name: 'operation-cancelled',
+          event: { type: activeDragOperation.value }
+        });
+      }
+    };
+    
     onMounted(() => {
       // Initialize zoom percentage
       updateCanvasState({ zoomPercentage: Math.round((viewport.value?.zoom || 1) * 100) });
       
-      // Add global mouse up listener for better drag handling
-      document.addEventListener('mouseup', handleCanvasMouseUp);
+      // CRITICAL: Global listeners for cursor lock functionality
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('keydown', handleEscapeKey);
     });
 
     onUnmounted(() => {
-      document.removeEventListener('mouseup', handleCanvasMouseUp);
+      // Clean up global listeners
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('keydown', handleEscapeKey);
     });
     //#endregion
 
     //#region Watchers
-    // Note: Visual property changes are automatically handled by computed styles
-    // No explicit watchers needed for reactive CSS variables
+    // CRITICAL: Watch ALL properties that affect component rendering for instant visual updates
+    // Per WeWeb best practices - users expect immediate visual feedback when changing properties
+    watch(
+      () => [
+        // Canvas Layout & Behavior
+        props.content?.gridLayout,
+        props.content?.treeLayoutDirection,
+        props.content?.showGrid,
+        props.content?.snapToGrid,
+        props.content?.gridPattern,
+        
+        // Edge & Path Configuration
+        props.content?.pathType,
+        
+        // Node Configuration
+        props.content?.globalNodeType,
+        props.content?.connectableNodes,
+        props.content?.deletableNodes,
+        props.content?.allowNodeResize,
+        
+        // Toolbar & Menu Configuration
+        props.content?.toolbarEnabled,
+        props.content?.toolbarPosition,
+        props.content?.selectionMenuEnabled,
+        props.content?.selectionMenuMode,
+        props.content?.actionBehaviorMode,
+        props.content?.contextMenuEnabled,
+        
+        // Zoom & Pan
+        props.content?.enableZoom,
+        props.content?.enablePan,
+        props.content?.minZoom,
+        props.content?.maxZoom,
+        
+        // Actions Dropzone
+        props.content?.actionsDropzoneEnabled,
+      ],
+      (newValues, oldValues) => {
+        // Tree layout needs recalculation when layout properties change
+        if (newValues[0] !== oldValues?.[0] || newValues[1] !== oldValues?.[1]) {
+          // gridLayout or treeLayoutDirection changed
+          if (newValues[0] === 'tree' && canvasState.value?.nodes?.length) {
+            const repositionedNodes = calculateTreeLayout(
+              canvasState.value.nodes,
+              canvasState.value.edges || []
+            );
+            updateCanvasState({ nodes: repositionedNodes });
+          }
+        }
+        
+        // Other property changes are handled automatically via computed styles
+        // This watcher ensures the component is reactive to ALL user changes
+      },
+      { deep: true }
+    );
+
+    // Separate watcher for style-only changes (handled by computed CSS variables)
+    watch(
+      () => [
+        props.content?.backgroundColor,
+        props.content?.gridColor,
+        props.content?.nodeBackgroundColor,
+        props.content?.nodeBorderColor,
+        props.content?.selectedNodeBorderColor,
+        props.content?.handleColor,
+        props.content?.handleBorderColor,
+        props.content?.selectedHandleColor,
+        props.content?.edgeColor,
+        props.content?.selectedEdgeColor,
+        props.content?.nodeDropzoneBackgroundColor,
+        props.content?.selectionMenuBackground,
+        props.content?.selectionMenuBorderColor,
+        props.content?.selectionMenuOffset,
+        props.content?.actionsDropzoneHeight,
+        props.content?.actionsDropzoneBackground,
+        props.content?.enableVignette,
+        props.content?.vignetteIntensity,
+        props.content?.vignetteSize,
+        props.content?.handleProximityRadius,
+      ],
+      () => {
+        // Style changes handled automatically via computed canvasStyle and dropZoneStyle
+        // No action needed - this watcher documents which props are style-only
+      },
+      { deep: true }
+    );
     //#endregion
 
     //#region Return
@@ -1589,6 +1808,8 @@ export default {
       editingNodeId,
       modalInitialValue,
       modalInitialType,
+      activeDragOperation,
+      edgeCreationState,
       
       // Computed
       visibleEdges,
@@ -1671,6 +1892,15 @@ export default {
 
   &:active {
     cursor: default;
+  }
+  
+  /* CRITICAL: Prevent pointer events from escaping during operations */
+  &[style*="cursor: grabbing"],
+  &[style*="cursor: crosshair"] {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
   }
 }
 

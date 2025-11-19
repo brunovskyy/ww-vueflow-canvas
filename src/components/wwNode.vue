@@ -486,6 +486,13 @@ export default {
       event.stopPropagation();
       event.preventDefault();
       
+      // CRITICAL: Signal to parent that resize operation is starting
+      emit('node-mousedown', {
+        event,
+        nodeId: props.node?.id,
+        isResize: true
+      });
+      
       isResizing.value = true;
       
       const nodeElement = event.target.closest('.canvas-node');
@@ -500,8 +507,13 @@ export default {
         handle: handle,
       };
       
+      // CRITICAL: Use global listeners for cursor lock during resize
       document.addEventListener('mousemove', handleResizeMove);
       document.addEventListener('mouseup', handleResizeEnd);
+      
+      // Prevent text selection during resize
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = getResizeCursor(handle);
     };
 
     const handleResizeMove = (event) => {
@@ -560,9 +572,28 @@ export default {
         height: props.node?.data?.height,
       });
       
-      // Clean up event listeners
+      // CRITICAL: Clean up global state
       document.removeEventListener('mousemove', handleResizeMove);
       document.removeEventListener('mouseup', handleResizeEnd);
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+    };
+    
+    /**
+     * Get appropriate cursor for resize handle
+     */
+    const getResizeCursor = (handle) => {
+      const cursors = {
+        'nw': 'nw-resize',
+        'ne': 'ne-resize',
+        'sw': 'sw-resize',
+        'se': 'se-resize',
+        'n': 'n-resize',
+        'e': 'e-resize',
+        's': 's-resize',
+        'w': 'w-resize',
+      };
+      return cursors[handle] || 'default';
     };
     //#endregion
 
