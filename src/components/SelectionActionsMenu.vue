@@ -15,7 +15,7 @@
         @mouseenter="hoveredAction = action"
         @mouseleave="hoveredAction = null"
       >
-        <span class="action-icon">{{ getActionIcon(action.icon) }}</span>
+        <i :class="action.icon" class="action-icon" />
         <span class="action-label">{{ action.label }}</span>
       </button>
     </template>
@@ -67,6 +67,7 @@
 <script>
 import { ref, computed, watch } from 'vue';
 import { isDarkColor } from '../utils/colorHelpers';
+import { ICONS } from '../utils/icons';
 
 export default {
   name: 'SelectionActionsMenu',
@@ -432,23 +433,23 @@ export default {
     };
 
     /**
-     * Get icon character for action
+     * Get icon class for action
      */
     const getActionIcon = (iconName) => {
       const iconMap = {
-        edit: '✎',
-        delete: '🗑',
-        duplicate: '⎘',
-        lock: '🔒',
-        unlock: '🔓',
-        color: '🎨',
-        'path-type': '↝',
-        'bring-front': '⬆',
-        'send-back': '⬇',
-        group: '⊡',
-        ungroup: '⊟',
+        edit: ICONS.edit,
+        delete: ICONS.delete,
+        duplicate: ICONS.duplicate,
+        lock: ICONS.web, // Using web icon for lock
+        unlock: ICONS.web, // Using web icon for unlock
+        color: ICONS.textNote, // Using textNote icon for color
+        'path-type': ICONS.flowNode,
+        'bring-front': ICONS.flowNode,
+        'send-back': ICONS.flowNode,
+        group: ICONS.flowNode,
+        ungroup: ICONS.flowNode,
       };
-      return iconMap[iconName] || '•';
+      return iconMap[iconName] || ICONS.flowNode;
     };
     //#endregion
 

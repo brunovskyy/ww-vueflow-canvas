@@ -2,18 +2,20 @@
  * Node Type Configurations
  * Defines properties and behaviors for different node types
  */
+import { ICONS } from './icons';
 
 export const NODE_TYPES = {
   DEFAULT: 'default',
   TEXT: 'text',
   MEDIA: 'media',
   WEB: 'web',
+  CUSTOM: 'custom',
 };
 
 export const NODE_TYPE_CONFIG = {
   [NODE_TYPES.DEFAULT]: {
     label: 'Flow Node',
-    icon: '⊡',
+    icon: ICONS.flowNode,
     description: 'Standard flow node with label and description',
     defaultData: {
       label: 'New Flow Node',
@@ -26,7 +28,7 @@ export const NODE_TYPE_CONFIG = {
   },
   [NODE_TYPES.TEXT]: {
     label: 'Text Note',
-    icon: '📝',
+    icon: ICONS.textNote,
     description: 'Rich text content card (Obsidian-style note)',
     defaultData: {
       label: 'New Note',
@@ -39,7 +41,7 @@ export const NODE_TYPE_CONFIG = {
   },
   [NODE_TYPES.MEDIA]: {
     label: 'Media',
-    icon: '🖼️',
+    icon: ICONS.media,
     description: 'Image, video, or PDF embedded in canvas',
     defaultData: {
       label: 'New Media',
@@ -53,7 +55,7 @@ export const NODE_TYPE_CONFIG = {
   },
   [NODE_TYPES.WEB]: {
     label: 'Web Page',
-    icon: '🌐',
+    icon: ICONS.web,
     description: 'Embedded web page via URL',
     defaultData: {
       label: 'New Web Page',
@@ -63,6 +65,18 @@ export const NODE_TYPE_CONFIG = {
     minHeight: 200,
     defaultWidth: 600,
     defaultHeight: 400,
+  },
+  [NODE_TYPES.CUSTOM]: {
+    label: 'Custom',
+    icon: ICONS.custom,
+    description: 'Custom node with dropzone content',
+    defaultData: {
+      label: 'Custom Node',
+    },
+    minWidth: 120,
+    minHeight: 80,
+    defaultWidth: 200,
+    defaultHeight: 120,
   },
 };
 

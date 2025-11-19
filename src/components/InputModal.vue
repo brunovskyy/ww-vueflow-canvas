@@ -3,7 +3,9 @@
     <div class="modal-container" @click.stop>
       <div class="modal-header">
         <h3 class="modal-title">{{ title }}</h3>
-        <button class="modal-close" @click="handleClose">×</button>
+        <button class="modal-close" @click="handleClose">
+          <i :class="closeIcon" />
+        </button>
       </div>
       
       <div class="modal-body">
@@ -31,7 +33,7 @@
               :class="['type-btn', { active: selectedType === type.value }]"
               @click="selectedType = type.value"
             >
-              <span class="type-icon">{{ type.icon }}</span>
+              <i :class="type.icon" class="type-icon" />
               <span class="type-label">{{ type.label }}</span>
             </button>
           </div>
@@ -53,6 +55,7 @@
 <script>
 import { ref, computed, watch, nextTick } from 'vue';
 import { detectMediaType, isValidUrl } from '../utils/nodeTypes';
+import { ICONS } from '../utils/icons';
 
 export default {
   name: 'InputModal',
@@ -103,10 +106,12 @@ export default {
     const errorMessage = ref('');
     
     const mediaTypes = [
-      { value: 'image', label: 'Image', icon: '🖼️' },
-      { value: 'video', label: 'Video', icon: '🎥' },
-      { value: 'pdf', label: 'PDF', icon: '📄' },
+      { value: 'image', label: 'Image', icon: ICONS.media },
+      { value: 'video', label: 'Video', icon: ICONS.web },
+      { value: 'pdf', label: 'PDF', icon: ICONS.textNote },
     ];
+    
+    const closeIcon = ICONS.delete;
     //#endregion
 
     //#region Watchers
@@ -166,6 +171,7 @@ export default {
       selectedType,
       errorMessage,
       mediaTypes,
+      closeIcon,
       handleSubmit,
       handleClose,
     };
@@ -231,7 +237,7 @@ export default {
 .modal-close {
   background: transparent;
   border: none;
-  font-size: 28px;
+  font-size: 20px;
   color: #999;
   cursor: pointer;
   padding: 0;
@@ -243,9 +249,18 @@ export default {
   border-radius: 6px;
   transition: all 0.2s ease;
   
+  i {
+    line-height: 1;
+    transition: color 0.2s ease;
+  }
+  
   &:hover {
     background: #f5f5f5;
     color: #333;
+    
+    i {
+      color: #333;
+    }
   }
 }
 
@@ -327,6 +342,8 @@ export default {
 
 .type-icon {
   font-size: 24px;
+  line-height: 1;
+  color: inherit;
 }
 
 .type-label {

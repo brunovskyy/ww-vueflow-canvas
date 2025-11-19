@@ -5,9 +5,11 @@ A professional, VueFlow-style node-based canvas component for WeWeb. Build inter
 ## 🎯 Features
 
 - **Interactive Canvas**: Drag nodes, zoom/pan view, snap to grid
-- **Connection System**: Visual handles for creating connections between nodes
+- **Connection System**: Visual handles with proximity detection for creating connections
 - **Real-time Editing**: All changes update internal variables for workflow integration
-- **Drop Zone Integration**: Custom control area for WeWeb elements
+- **Custom Node System**: Global node type system with dropzone support for custom content
+- **Tree Layout**: Automatic hierarchical positioning with vertical/horizontal direction
+- **Phosphor Icons**: Consistent iconography throughout the component
 - **Full Reactivity**: Dynamic data binding with isolated component state
 - **Touch-Optimized**: Responsive design for desktop and mobile
 
@@ -45,10 +47,19 @@ The component is built with a clean, maintainable architecture:
 ```
 src/
 ├── wwElement.vue              # Canvas wrapper (orchestrator)
-└── components/
-    ├── wwHandle.vue          # Connection handle component
-    ├── wwEdge.vue            # Edge rendering component
-    └── wwNode.vue            # Node rendering component
+├── components/
+│   ├── wwHandle.vue          # Connection handle component with proximity detection
+│   ├── wwEdge.vue            # Edge rendering component
+│   ├── wwNode.vue            # Node rendering component (default & custom types)
+│   ├── CanvasToolbar.vue     # Node creation toolbar (adapts to global node type)
+│   ├── ContextMenu.vue       # Right-click context menu
+│   ├── SelectionActionsMenu.vue  # Multi-selection actions
+│   └── InputModal.vue        # URL input for media/web nodes
+└── utils/
+    ├── icons.js              # Centralized Phosphor icon configuration
+    ├── nodeTypes.js          # Node type definitions and helpers
+    ├── pathTypes.js          # Edge path calculation utilities
+    └── colorHelpers.js       # Color manipulation functions
 ```
 
 **Benefits:**
@@ -60,11 +71,150 @@ src/
 **Component Responsibilities:**
 
 - **wwElement.vue**: Viewport, grid, state management, events
-- **wwNode.vue**: Individual node rendering, handles integration
+- **wwNode.vue**: Individual node rendering, handles integration, custom dropzone support
 - **wwEdge.vue**: Connection paths (bezier/straight), selection
-- **wwHandle.vue**: Connection points on nodes (source/target)
+- **wwHandle.vue**: Connection points with proximity detection
+- **CanvasToolbar.vue**: Node creation menu (position: bottom-left by default)
+- **ContextMenu.vue**: Right-click canvas menu
+- **SelectionActionsMenu.vue**: Actions for multiple selected items
+- **InputModal.vue**: User input dialogs
 
-See `REFACTORING_SUMMARY.md` for detailed architecture documentation.
+See `IMPLEMENTATION_SUMMARY.md` for detailed architecture documentation.
+
+---
+
+## 🆕 Recent Updates
+
+### **Version 2.0 - Enhanced Features (Latest)**
+
+#### **1. Global Node Type System** 🎨
+Replaced `nodeDropzoneEnabled` boolean with `globalNodeType` TextSelect property:
+
+- **`default` mode**: Full toolbar with all node type buttons (Flow Node, Text Note, Media, Web, Custom)
+- **`custom` mode**: Single "+" button that creates custom nodes with dropzone content
+
+**Why?** More flexible than boolean toggle, allows future expansion for additional modes, and provides better UX for custom content workflows.
+
+**Migration:**
+```javascript
+// Old approach
+nodeDropzoneEnabled: true  // Show dropzone on all nodes
+
+// New approach
+globalNodeType: 'custom'   // All nodes are custom type with dropzone
+globalNodeType: 'default'  // Standard nodes without forced dropzone
+```
+
+#### **2. Handle Proximity Detection** 🎯
+Connection handles now appear based on:
+- **Hover**: When hovering over the node (existing behavior)
+- **Proximity**: When cursor is within `handleProximityRadius` distance from handle position
+
+**Configuration:**
+- Property: `handleProximityRadius` (default: 80px)
+- Calculation: True Euclidean distance from cursor to handle screen position
+- Viewport-aware: Accounts for zoom level and pan offset
+
+**Benefits:**
+- Easier to find connection points on small nodes
+- Better UX for dense canvas layouts
+- Configurable sensitivity for different use cases
+
+#### **3. Tree Layout Direction** 📐
+Added `treeLayoutDirection` property for hierarchical layouts:
+
+- **`vertical`**: Traditional top-to-bottom tree (default)
+- **`horizontal`**: Left-to-right tree layout
+
+**Use Cases:**
+- Organizational charts: vertical
+- Process flows: horizontal
+- Timelines: horizontal
+- Decision trees: vertical
+
+**Configuration:**
+```javascript
+layoutMode: 'tree'              // Enable tree layout
+treeLayoutDirection: 'horizontal'  // Left-to-right positioning
+```
+
+#### **4. Phosphor Icon System** 🎨
+Centralized icon management using Phosphor Icons library:
+
+**Implementation:**
+- Created `src/utils/icons.js` with `ICONS` object
+- Format: `"ph ph-{icon-name}"` (deprecated WeWeb icon asset format)
+- Used across ALL components for consistency
+
+**Icons Available:**
+- `flowNode`, `textNote`, `media`, `web`, `custom`
+- `edit`, `delete`, `duplicate`
+- `zoomIn`, `zoomOut`, `fitView`, `reset`
+- And more...
+
+**Benefits:**
+- Single source of truth for all icons
+- Easy to change icons globally
+- Consistent visual language
+- Future-ready for theme customization
+
+#### **5. Improved Property Tooltips** 📝
+Rewrote 15+ property descriptions in `ww-config.js`:
+
+**Before:**
+```javascript
+propertyHelp: 'Enable grid'
+```
+
+**After:**
+```javascript
+propertyHelp: 'Display background grid with configurable dot size and spacing. Helps align nodes visually without affecting snap behavior.'
+```
+
+**Coverage:**
+- Canvas settings (grid, zoom, layout)
+- Node settings (selection, handles, types)
+- Edge settings (paths, animation)
+- Styling properties (colors, dimensions)
+- Toolbar configuration
+
+#### **6. UUID Generation Fix** 🔧
+**Issue:** Hardcoded IDs in default nodes/edges could cause duplicates
+
+**Solution:**
+- Removed all hardcoded `id` fields from `ww-config.js` defaults
+- IDs generated at runtime using `crypto.randomUUID()`
+- Ensures truly unique identifiers for every node/edge
+
+**Before:**
+```javascript
+defaultValue: [
+  { id: 'node-1', ... },  // ❌ Hardcoded
+  { id: 'node-2', ... }
+]
+```
+
+**After:**
+```javascript
+defaultValue: [
+  { position: { x: 100, y: 100 }, ... },  // ✅ ID generated at creation
+  { position: { x: 300, y: 100 }, ... }
+]
+```
+
+#### **7. Toolbar Position Change** 🎨
+**Default position changed from `top-left` to `bottom-left`**
+
+**Rationale:**
+- Better UX: Toolbar doesn't overlap with typical header/navigation areas
+- Consistent with other canvas tools (Figma, Miro, etc.)
+- Leaves top area clear for titles or instructions
+
+**Still configurable** via `toolbarPosition` property (9 positions available)
+
+---
+
+**Component Responsibilities:**
 
 ---
 
@@ -88,14 +238,26 @@ Following your proposal, I implemented a fully modular VueFlow-style canvas with
 |----------|------|---------|---------|
 | `initialNodes` | Array | Starting node configuration | 3 sample nodes |
 | `initialEdges` | Array | Starting edge configuration | 2 sample edges |
+| **Canvas Settings** ||||
 | `gridEnabled` | Boolean | Show background grid | `true` |
 | `zoomEnabled` | Boolean | Enable zoom/pan | `true` |
 | `minZoom` / `maxZoom` | Number | Zoom limits | 0.1 / 2 |
 | `snapToGrid` | Boolean | Snap nodes when dragging | `false` |
+| **Node Settings** ||||
 | `connectableNodes` | Boolean | Show connection handles | `true` |
 | `deletableNodes` | Boolean | Show delete buttons | `true` |
-| `edgePathType` | String | Bezier or straight | `'bezier'` |
-| `dropZoneEnabled` | Boolean | Show drop zone | `true` |
+| `globalNodeType` | TextSelect | Node creation mode: `'default'` or `'custom'` | `'default'` |
+| `handleProximityRadius` | Number | Cursor distance to show handles (px) | `80` |
+| **Layout Settings** ||||
+| `layoutMode` | TextSelect | Layout algorithm: `'free'` or `'tree'` | `'free'` |
+| `treeLayoutDirection` | TextSelect | Tree direction: `'vertical'` or `'horizontal'` | `'vertical'` |
+| **Edge Settings** ||||
+| `edgePathType` | TextSelect | Path style: `'bezier'` or `'straight'` | `'bezier'` |
+| **Toolbar Settings** ||||
+| `toolbarEnabled` | Boolean | Show node creation toolbar | `true` |
+| `toolbarPosition` | TextSelect | 9 positions available | `'bottom-left'` |
+| **Drop Zone** ||||
+| `dropZoneEnabled` | Boolean | Show drop zone area | `true` |
 | **All styling props** | Color/Length | Full theme control | Professional defaults |
 
 ### **3. Internal Variables (Component State)**
@@ -323,7 +485,59 @@ initialNodes = workflow_steps.map(step => ({
 // but triggers allow saving back to database
 ```
 
-### **Example 3: Drop Zone Custom Actions**
+### **Example 3: Custom Node System**
+
+```javascript
+// Set globalNodeType to 'custom'
+globalNodeType: 'custom'
+
+// Toolbar shows single "+" button
+// When user clicks "+", creates custom node with dropzone
+
+// In each custom node, users can:
+// - Drop any WeWeb element (cards, buttons, forms)
+// - Content appears in all custom nodes
+// - Perfect for team roster, product cards, etc.
+
+// Example: Team Organization Chart
+// 1. Set globalNodeType: 'custom'
+// 2. Set layoutMode: 'tree'
+// 3. Set treeLayoutDirection: 'vertical'
+// 4. Create custom nodes
+// 5. Drop "Team Member Card" component
+// 6. Auto-arranged in hierarchical layout
+```
+
+### **Example 4: Tree Layout - Horizontal Process Flow**
+
+```javascript
+// Configuration
+layoutMode: 'tree'
+treeLayoutDirection: 'horizontal'
+globalNodeType: 'default'
+
+// Create nodes with parent-child relationships
+// Nodes automatically position left-to-right
+// Perfect for timelines, process flows, decision trees
+```
+
+### **Example 5: Handle Proximity Detection**
+
+```javascript
+// Make handles easier to find on small nodes
+handleProximityRadius: 120  // Increase from default 80px
+
+// Handles appear when:
+// 1. Hovering over the node (always)
+// 2. Cursor within 120px of handle position (new)
+
+// Great for:
+// - Dense canvas layouts
+// - Small node sizes
+// - Touch interfaces
+```
+
+### **Example 6: Drop Zone Custom Actions**
 
 ```javascript
 // In drop zone, add:
@@ -405,9 +619,67 @@ This allows real-time theme changes without component re-render.
 ✅ **Production Ready** - Professional code quality  
 ✅ **Complete Isolation** - Props don't mutate, internal state managed separately  
 ✅ **Real-time Reactive** - All changes update immediately  
-✅ **Workflow Integration** - 12 trigger events for automation  
+✅ **Workflow Integration** - 12+ trigger events for automation  
 ✅ **NoCode Friendly** - All features accessible via editor  
 ✅ **Mobile Responsive** - Works on all devices  
+✅ **Global Node System** - Flexible custom content with dropzone support  
+✅ **Smart Handle Detection** - Proximity-based handle visibility  
+✅ **Tree Layouts** - Automatic hierarchical positioning with direction control  
+✅ **Consistent Icons** - Phosphor icon library throughout  
+✅ **Unique IDs** - Runtime UUID generation prevents duplicates  
+✅ **Improved UX** - Enhanced tooltips and default positioning  
+
+---
+
+## 🎨 Icon System
+
+The component uses a centralized icon configuration in `src/utils/icons.js`:
+
+### **Available Icons**
+
+```javascript
+import { ICONS } from './utils/icons'
+
+// Node Type Icons
+ICONS.flowNode        // "ph ph-flow-arrow"
+ICONS.textNote        // "ph ph-note-pencil"
+ICONS.media           // "ph ph-image"
+ICONS.web             // "ph ph-globe"
+ICONS.custom          // "ph ph-package"
+
+// Action Icons
+ICONS.edit            // "ph ph-pencil-simple"
+ICONS.delete          // "ph ph-trash"
+ICONS.duplicate       // "ph ph-copy"
+
+// Control Icons
+ICONS.zoomIn          // "ph ph-magnifying-glass-plus"
+ICONS.zoomOut         // "ph ph-magnifying-glass-minus"
+ICONS.fitView         // "ph ph-frame-corners"
+ICONS.reset           // "ph ph-arrow-counter-clockwise"
+```
+
+### **Helper Functions**
+
+```javascript
+// Get icon class by name
+getIconClass('edit')  // Returns "ph ph-pencil-simple"
+
+// Get node type icon options for dropdowns
+getNodeTypeIconOptions()  // Returns array for ww-config
+
+// Get action icon options
+getActionIconOptions()  // Returns array for ww-config
+```
+
+### **Format**
+
+All icons follow WeWeb's deprecated icon asset format:
+```javascript
+"ph ph-{icon-name}"
+```
+
+This ensures compatibility with WeWeb's icon rendering system while maintaining a single source of truth for all iconography.  
 
 ---
 
@@ -451,14 +723,62 @@ Zoom level as percentage (100 = 100%, 50 = 50%, 200 = 200%).
 
 ---
 
+## ⚠️ Breaking Changes (v2.0)
+
+### **globalNodeType Replaces nodeDropzoneEnabled**
+
+**Old Property (Removed):**
+```javascript
+nodeDropzoneEnabled: true  // Boolean toggle
+```
+
+**New Property:**
+```javascript
+globalNodeType: 'default'  // or 'custom'
+```
+
+**Migration Guide:**
+
+| Old Configuration | New Configuration | Behavior |
+|------------------|-------------------|----------|
+| `nodeDropzoneEnabled: false` | `globalNodeType: 'default'` | Full toolbar, standard nodes |
+| `nodeDropzoneEnabled: true` | `globalNodeType: 'custom'` | Single + button, custom nodes with dropzone |
+
+**Why the change?**
+- More flexible: Allows future node type modes beyond just boolean
+- Better semantics: "globalNodeType" clearly describes what it controls
+- Easier extension: Can add new modes like 'template', 'shape', etc.
+
+### **Toolbar Default Position Changed**
+
+**Old Default:** `toolbarPosition: 'top-left'`  
+**New Default:** `toolbarPosition: 'bottom-left'`
+
+**Impact:** Existing components will see toolbar move to bottom-left on next edit. If you need top-left, explicitly set the property.
+
+### **Default Node/Edge IDs No Longer Hardcoded**
+
+**Old Behavior:** Initial nodes had hardcoded IDs like `'node-1'`, `'node-2'`  
+**New Behavior:** IDs generated dynamically using `crypto.randomUUID()`
+
+**Impact:** If you relied on specific default IDs in workflows, update to use `selectedNodeId` variable or node selection events instead.
+
+---
+
 ## 🎮 Built-in Canvas Controls
 
-Located in the drop zone area (bottom-right):
+Located in the drop zone area (when `dropZoneEnabled: true`):
 
-- **+ (Zoom In)**: Increase zoom by 10%
-- **− (Zoom Out)**: Decrease zoom by 10%
-- **⊡ (Fit View)**: Automatically fit all nodes in viewport
-- **↻ (Reset View)**: Reset to default zoom (100%) and position (0, 0)
+- **<i class="ph ph-magnifying-glass-plus"></i> Zoom In**: Increase zoom by 10%
+- **<i class="ph ph-magnifying-glass-minus"></i> Zoom Out**: Decrease zoom by 10%
+- **<i class="ph ph-frame-corners"></i> Fit View**: Automatically fit all nodes in viewport
+- **<i class="ph ph-arrow-counter-clockwise"></i> Reset View**: Reset to default zoom (100%) and position (0, 0)
+
+**Phosphor Icons Used Throughout:**
+- All controls use Phosphor icon library
+- Format: `"ph ph-{icon-name}"`
+- Centralized in `src/utils/icons.js`
+- Consistent visual language across component
 
 ---
 
@@ -473,6 +793,7 @@ Located in the drop zone area (bottom-right):
 - ✅ Verify `connectableNodes` is `true`
 - ✅ Check that source and target node IDs exist
 - ✅ Ensure you're dragging from source handle (blue dot)
+- ✅ Try increasing `handleProximityRadius` if handles are hard to find
 
 ### Canvas Not Panning/Zooming
 - ✅ Verify `zoomEnabled` is `true`
@@ -483,6 +804,28 @@ Located in the drop zone area (bottom-right):
 - ✅ Verify `dropZoneEnabled` is `true`
 - ✅ Check canvas has enough height to show bottom controls
 - ✅ Ensure no CSS conflicts with parent containers
+
+### Custom Nodes Not Showing Dropzone
+- ✅ Set `globalNodeType: 'custom'`
+- ✅ Ensure node `type` property is `'custom'`
+- ✅ Check `dropZoneContent` is not empty (drop elements in editor)
+
+### Tree Layout Not Working
+- ✅ Verify `layoutMode: 'tree'`
+- ✅ Ensure nodes have proper parent-child relationships (edges define hierarchy)
+- ✅ Check `treeLayoutDirection` is set correctly
+- ✅ Root nodes (no incoming edges) start the tree
+
+### Handles Not Appearing on Proximity
+- ✅ Check `handleProximityRadius` value (default: 80px)
+- ✅ Ensure cursor is within radius of handle position
+- ✅ Verify canvas is properly initialized (check console for errors)
+- ✅ Try hovering over node first (handles always show on hover)
+
+### Toolbar in Wrong Position
+- ✅ Check `toolbarPosition` property (default changed to `'bottom-left'` in v2.0)
+- ✅ Available positions: top-left, top-center, top-right, left, center, right, bottom-left, bottom-center, bottom-right
+- ✅ Ensure `toolbarEnabled: true`
 
 ---
 

@@ -1,7 +1,7 @@
 <template>
   <div
     :class="['node-handle', `handle-${handle?.position}`, `handle-${handle?.type}`, {
-      'handle-visible': isVisible
+      'handle-visible': shouldShowHandle
     }]"
     :style="handleContainerStyle"
     @mousedown.stop="handleMouseDown"
@@ -26,6 +26,10 @@ export default {
       type: String,
       required: true,
     },
+    nodePosition: {
+      type: Object,
+      default: () => ({ x: 0, y: 0 }),
+    },
     isVisible: {
       type: Boolean,
       default: false,
@@ -33,6 +37,14 @@ export default {
     config: {
       type: Object,
       default: () => ({}),
+    },
+    viewport: {
+      type: Object,
+      default: () => ({ x: 0, y: 0, zoom: 1 }),
+    },
+    cursorPosition: {
+      type: Object,
+      default: () => ({ x: 0, y: 0 }),
     },
   },
   emits: ['handle-mousedown', 'handle-mouseup'],
@@ -43,6 +55,60 @@ export default {
       // Parse the value to extract number (e.g., "20px" -> 20)
       const numericValue = parseInt(radius, 10);
       return isNaN(numericValue) ? 20 : numericValue;
+    });
+
+    /**
+     * Calculate if cursor is within proximity radius of this handle
+     */
+    const isWithinProximity = computed(() => {
+      if (!props.nodePosition || !props.viewport || !props.cursorPosition) return false;
+      
+      const radius = proximityRadius.value;
+      const zoom = props.viewport.zoom || 1;
+      const viewportX = props.viewport.x || 0;
+      const viewportY = props.viewport.y || 0;
+      
+      // Calculate handle screen position
+      const nodeScreenX = props.nodePosition.x * zoom + viewportX;
+      const nodeScreenY = props.nodePosition.y * zoom + viewportY;
+      
+      // Handle offset from node center based on position
+      let handleOffsetX = 0;
+      let handleOffsetY = 0;
+      
+      switch (props.handle?.position) {
+        case 'top':
+          handleOffsetY = -30 * zoom;
+          break;
+        case 'bottom':
+          handleOffsetY = 30 * zoom;
+          break;
+        case 'left':
+          handleOffsetX = -60 * zoom;
+          break;
+        case 'right':
+          handleOffsetX = 60 * zoom;
+          break;
+      }
+      
+      const handleScreenX = nodeScreenX + handleOffsetX;
+      const handleScreenY = nodeScreenY + handleOffsetY;
+      
+      // Calculate distance from cursor to handle
+      const dx = props.cursorPosition.x - handleScreenX;
+      const dy = props.cursorPosition.y - handleScreenY;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      return distance <= radius;
+    });
+
+    /**
+     * Handle should be visible if:
+     * - isVisible prop is true (legacy behavior for connection dragging/selection)
+     * - OR cursor is within proximity radius (new proximity detection)
+     */
+    const shouldShowHandle = computed(() => {
+      return props.isVisible || isWithinProximity.value;
     });
 
     const handleContainerStyle = computed(() => {
@@ -113,6 +179,7 @@ export default {
     //#endregion
 
     return {
+      shouldShowHandle,
       handleContainerStyle,
       handleDotStyle,
       handleMouseDown,

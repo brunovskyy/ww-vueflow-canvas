@@ -1,25 +1,40 @@
 <template>
   <div 
     v-if="enabled" 
-    :class="['canvas-toolbar', positionClass]"
+    :class="['canvas-toolbar', positionClass, { 'toolbar-custom-mode': mode === 'custom' }]"
     :style="toolbarStyle"
   >
+    <!-- Custom Mode: Single "+" Button -->
     <button
-      v-for="nodeType in nodeTypes"
-      :key="nodeType.value"
-      class="toolbar-btn"
-      :title="`Add ${nodeType.label}`"
-      @click="handleAddNode(nodeType.value)"
+      v-if="mode === 'custom'"
+      class="toolbar-btn toolbar-btn-add"
+      title="Add Custom Node"
+      @click="handleAddNode('custom')"
     >
-      <span class="btn-icon">{{ nodeType.icon }}</span>
-      <span class="btn-label">{{ nodeType.label }}</span>
+      <i :class="addIcon" />
+      <span class="btn-label">Add Node</span>
     </button>
+
+    <!-- Default Mode: Multiple Node Type Buttons -->
+    <template v-else>
+      <button
+        v-for="nodeType in nodeTypes"
+        :key="nodeType.value"
+        class="toolbar-btn"
+        :title="`Add ${nodeType.label}`"
+        @click="handleAddNode(nodeType.value)"
+      >
+        <i :class="nodeType.icon" />
+        <span class="btn-label">{{ nodeType.label }}</span>
+      </button>
+    </template>
   </div>
 </template>
 
 <script>
 import { computed } from 'vue';
 import { getNodeTypeOptions } from '../utils/nodeTypes';
+import { ICONS } from '../utils/icons';
 
 export default {
   name: 'CanvasToolbar',
@@ -30,19 +45,29 @@ export default {
     },
     position: {
       type: String,
-      default: 'top-left',
+      default: 'bottom-left',
       // top-left | top-center | top-right | bottom-left | bottom-center | bottom-right
+    },
+    mode: {
+      type: String,
+      default: 'default',
+      // default | custom
     },
   },
   emits: ['add-node'],
   setup(props, { emit }) {
     //#region Computed
     const nodeTypes = computed(() => {
-      return getNodeTypeOptions();
+      // Only show non-custom types in default mode
+      return getNodeTypeOptions().filter(type => type.value !== 'custom');
     });
 
     const positionClass = computed(() => {
-      return `toolbar-${props.position || 'top-left'}`;
+      return `toolbar-${props.position || 'bottom-left'}`;
+    });
+
+    const addIcon = computed(() => {
+      return ICONS.add;
     });
 
     const toolbarStyle = computed(() => ({
@@ -59,6 +84,7 @@ export default {
     return {
       nodeTypes,
       positionClass,
+      addIcon,
       toolbarStyle,
       handleAddNode,
     };
@@ -77,6 +103,10 @@ export default {
   padding: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+  
+  &.toolbar-custom-mode {
+    padding: 6px;
+  }
   
   // Position variants
   &.toolbar-top-left {
@@ -133,17 +163,45 @@ export default {
     color: #007aff;
     transform: translateY(-1px);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    
+    i {
+      color: #007aff;
+    }
   }
   
   &:active {
     transform: translateY(0);
     box-shadow: none;
   }
+  
+  i {
+    font-size: 18px;
+    line-height: 1;
+    color: #333;
+    transition: color 0.2s ease;
+  }
 }
 
-.btn-icon {
-  font-size: 16px;
-  line-height: 1;
+.toolbar-btn-add {
+  min-width: 120px;
+  justify-content: center;
+  background: linear-gradient(135deg, #007aff 0%, #0051d5 100%);
+  color: white;
+  border-color: #007aff;
+  
+  i {
+    color: white;
+  }
+  
+  &:hover {
+    background: linear-gradient(135deg, #0066dd 0%, #0045b8 100%);
+    border-color: #0066dd;
+    color: white;
+    
+    i {
+      color: white;
+    }
+  }
 }
 
 .btn-label {
@@ -167,6 +225,10 @@ export default {
   .toolbar-btn {
     width: 100%;
     justify-content: flex-start;
+  }
+  
+  .toolbar-btn-add {
+    width: 100%;
   }
 }
 </style>

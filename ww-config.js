@@ -6,20 +6,21 @@ export default {
     icon: "canvas",
     customStylePropertiesOrder: [
       {
-        label: "Canvas",
+        label: "Canvas Styling",
         isCollapsible: true,
         properties: [
           "backgroundColor",
           "gridColor",
           "gridPattern",
           "gridLayout",
+          "treeLayoutDirection",
           "enableVignette",
           "vignetteIntensity",
           "vignetteSize"
         ],
       },
       {
-        label: "Nodes",
+        label: "Node Styling",
         isCollapsible: true,
         properties: [
           "nodeBackgroundColor",
@@ -32,7 +33,7 @@ export default {
         ],
       },
       {
-        label: "Edges",
+        label: "Edge Styling",
         isCollapsible: true,
         properties: [
           "edgeColor",
@@ -49,7 +50,7 @@ export default {
         ],
       },
       {
-        label: "Actions Panel",
+        label: "Canvas Actions Panel",
         isCollapsible: true,
         properties: [
           "actionsDropzoneHeight",
@@ -59,7 +60,7 @@ export default {
     ],
     customSettingsPropertiesOrder: [
       {
-        label: "Canvas",
+        label: "Canvas Logic",
         isCollapsible: true,
         properties: [
           "showGrid",
@@ -68,21 +69,24 @@ export default {
           "enablePan",
           "minZoom",
           "maxZoom",
+          "contextMenuEnabled",
+          "doubleClickNodeType",
         ],
       },
       {
-        label: "Nodes",
+        label: "Node Logic",
         isCollapsible: true,
         properties: [
           "connectableNodes",
           "deletableNodes",
-          "nodeDropzoneEnabled",
+          "allowNodeResize",
+          "globalNodeType",
           "handleProximityRadius",
           "initialNodes",
         ],
       },
       {
-        label: "Edges",
+        label: "Edge Logic",
         isCollapsible: true,
         properties: [
           "pathType",
@@ -101,7 +105,7 @@ export default {
         ],
       },
       {
-        label: "Actions Panel",
+        label: "Canvas Actions Panel",
         isCollapsible: true,
         properties: [
           "actionsDropzoneEnabled",
@@ -113,15 +117,6 @@ export default {
         properties: [
           "toolbarEnabled",
           "toolbarPosition",
-        ],
-      },
-      {
-        label: "Interactions",
-        isCollapsible: true,
-        properties: [
-          "contextMenuEnabled",
-          "doubleClickNodeType",
-          "allowNodeResize",
         ],
       },
     ],
@@ -136,7 +131,6 @@ export default {
       bindable: true,
       defaultValue: [
         {
-          id: 'node-1',
           type: 'default',
           positionX: 250,
           positionY: 100,
@@ -144,7 +138,6 @@ export default {
           description: 'This is the starting point.'
         },
         {
-          id: 'node-2',
           type: 'default',
           positionX: 250,
           positionY: 250,
@@ -152,7 +145,6 @@ export default {
           description: 'Processing data.'
         },
         {
-          id: 'node-3',
           type: 'default',
           positionX: 250,
           positionY: 400,
@@ -168,7 +160,6 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: 'new-node',
             type: 'default',
             positionX: 100,
             positionY: 100,
@@ -177,16 +168,6 @@ export default {
           },
           options: {
             item: {
-              id: {
-                label: { en: 'Node ID' },
-                type: 'Text',
-                /* wwEditor:start */
-                bindingValidation: {
-                  type: 'string',
-                  tooltip: 'Unique identifier for the node'
-                },
-                /* wwEditor:end */
-              },
               type: {
                 label: { en: 'Node Type' },
                 type: 'TextSelect',
@@ -195,16 +176,17 @@ export default {
                     { value: 'default', label: 'Flow Node' },
                     { value: 'text', label: 'Text Note' },
                     { value: 'media', label: 'Media' },
-                    { value: 'web', label: 'Web Page' }
+                    { value: 'web', label: 'Web Page' },
+                    { value: 'custom', label: 'Custom' }
                   ]
                 },
                 defaultValue: 'default',
                 /* wwEditor:start */
                 bindingValidation: {
                   type: 'string',
-                  tooltip: 'Valid values: default | text | media | web'
+                  tooltip: 'Valid values: default | text | media | web | custom'
                 },
-                propertyHelp: 'Choose the type of node: Flow (default diagrams), Text (rich notes), Media (images/video), or Web (embedded pages)'
+                propertyHelp: 'Select node type: Flow (standard diagrams), Text (rich notes), Media (images/videos), Web (embedded pages), or Custom (dropzone content)'
                 /* wwEditor:end */
               },
               positionX: {
@@ -367,7 +349,6 @@ export default {
         item: {
           type: 'Object',
           defaultValue: {
-            id: 'new-edge',
             source: '',
             target: '',
             sourceHandle: 'bottom',
@@ -375,16 +356,6 @@ export default {
           },
           options: {
             item: {
-              id: {
-                label: { en: 'Edge ID' },
-                type: 'Text',
-                /* wwEditor:start */
-                bindingValidation: {
-                  type: 'string',
-                  tooltip: 'Unique identifier for the edge'
-                },
-                /* wwEditor:end */
-              },
               source: {
                 label: { en: 'Source Node ID' },
                 type: 'Text',
@@ -471,7 +442,7 @@ export default {
         type: 'boolean',
         tooltip: 'Toggle grid visibility'
       },
-      propertyHelp: 'Enable or disable the background grid on the canvas'
+      propertyHelp: 'Display background grid pattern on canvas for visual alignment and reference'
       /* wwEditor:end */
     },
 
@@ -489,7 +460,7 @@ export default {
         type: 'boolean',
         tooltip: 'Snap nodes to grid when dragging'
       },
-      propertyHelp: 'When enabled, nodes will snap to grid intersections when moved'
+      propertyHelp: 'Automatically align nodes to grid intersections during drag operations for precise positioning'
       /* wwEditor:end */
     },
 
@@ -506,7 +477,7 @@ export default {
         type: 'boolean',
         tooltip: 'Enable zoom interaction'
       },
-      propertyHelp: 'Allow users to zoom (mouse wheel) the canvas view'
+      propertyHelp: 'Allow zooming in/out using mouse wheel to view canvas at different scales'
       /* wwEditor:end */
     },
 
@@ -523,7 +494,7 @@ export default {
         type: 'boolean',
         tooltip: 'Enable pan interaction'
       },
-      propertyHelp: 'Allow users to pan (drag canvas) the view'
+      propertyHelp: 'Allow navigating the canvas by dragging with middle mouse button or trackpad gestures'
       /* wwEditor:end */
     },
 
@@ -581,7 +552,7 @@ export default {
         type: 'boolean',
         tooltip: 'Allow creating connections between nodes'
       },
-      propertyHelp: 'Enable node handles for creating connections between nodes'
+      propertyHelp: 'Show connection handles on nodes allowing users to create edges between them by dragging'
       /* wwEditor:end */
     },
 
@@ -598,24 +569,30 @@ export default {
         type: 'boolean',
         tooltip: 'Show delete button on nodes'
       },
-      propertyHelp: 'Display a delete button on each node for quick removal'
+      propertyHelp: 'Display delete (×) button on each node header for quick removal without using selection menu'
       /* wwEditor:end */
     },
 
-    nodeDropzoneEnabled: {
-      label: { en: 'Enable Node Custom Content' },
-      type: 'OnOff',
+    globalNodeType: {
+      label: { en: 'Global Node Type' },
+      type: 'TextSelect',
       section: 'settings',
-      defaultValue: false,
+      options: {
+        options: [
+          { value: 'default', label: 'Default (Multiple Types)' },
+          { value: 'custom', label: 'Custom (Dropzone Content)' }
+        ]
+      },
+      defaultValue: 'default',
       bindable: true,
       states: true,
       classes: true,
       /* wwEditor:start */
       bindingValidation: {
-        type: 'boolean',
-        tooltip: 'Enable custom content dropzone for nodes'
+        type: 'string',
+        tooltip: 'Valid values: default | custom'
       },
-      propertyHelp: 'When enabled, replaces default node cards with custom dropzone content. Handles remain visible for connections.'
+      propertyHelp: 'Default: Shows toolbar with all node type buttons. Custom: Shows single "+" button creating custom dropzone nodes where you can drop reusable content templates'
       /* wwEditor:end */
     },
 
@@ -651,7 +628,7 @@ export default {
           { value: 'bottom-right', label: 'Bottom Right' }
         ]
       },
-      defaultValue: 'top-left',
+      defaultValue: 'bottom-left',
       bindable: true,
       states: true,
       classes: true,
@@ -661,7 +638,7 @@ export default {
         type: 'string',
         tooltip: 'Valid values: top-left | top-center | top-right | bottom-left | bottom-center | bottom-right'
       },
-      propertyHelp: 'Position of the toolbar on the canvas'
+      propertyHelp: 'Choose where the node creation toolbar appears on the canvas'
       /* wwEditor:end */
     },
     //#endregion
@@ -680,7 +657,7 @@ export default {
         type: 'boolean',
         tooltip: 'Enable right-click context menu'
       },
-      propertyHelp: 'Show context menu on right-click for creating nodes'
+      propertyHelp: 'Show context menu when right-clicking canvas, allowing quick node creation at cursor position'
       /* wwEditor:end */
     },
 
@@ -705,7 +682,7 @@ export default {
         type: 'string',
         tooltip: 'Valid values: default | text | media | web'
       },
-      propertyHelp: 'Type of node created when double-clicking the canvas'
+      propertyHelp: 'Type of node created when double-clicking empty canvas area (quick node creation shortcut)'
       /* wwEditor:end */
     },
 
@@ -722,7 +699,7 @@ export default {
         type: 'boolean',
         tooltip: 'Enable node resizing handles'
       },
-      propertyHelp: 'Allow users to resize nodes by dragging resize handles'
+      propertyHelp: 'Show resize handles on selected nodes (Text, Media, Web types) allowing users to adjust dimensions'
       /* wwEditor:end */
     },
     //#endregion
@@ -748,7 +725,7 @@ export default {
         type: 'string',
         tooltip: 'Valid values: bezier | straight | step | step-smart'
       },
-      propertyHelp: 'Choose the visual style for edges. Step Smart uses pathfinding to avoid nodes but requires more processing.'
+      propertyHelp: 'Edge rendering style: Bezier (smooth curves), Straight (direct lines), Step (90° angles), Step Smart (pathfinding around nodes - more CPU intensive)'
       /* wwEditor:end */
     },
     //#endregion
@@ -1145,7 +1122,7 @@ export default {
       bindable: true,
       states: true,
       classes: true,
-      hidden: content => !content?.nodeDropzoneEnabled,
+      hidden: content => content?.globalNodeType !== 'custom',
       /* wwEditor:start */
       bindingValidation: {
         type: 'string',
@@ -1234,7 +1211,31 @@ export default {
         type: 'string',
         tooltip: 'Valid values: free | tree'
       },
-      propertyHelp: 'Choose layout mode: Free allows manual positioning, Tree automatically arranges nodes hierarchically based on connections'
+      propertyHelp: 'Free: Manual node positioning. Tree: Automatic hierarchical layout based on edge connections (parent-child relationships)'
+      /* wwEditor:end */
+    },
+
+    treeLayoutDirection: {
+      label: { en: 'Tree Layout Direction' },
+      type: 'TextSelect',
+      section: 'style',
+      options: {
+        options: [
+          { value: 'vertical', label: 'Vertical (Top to Bottom)' },
+          { value: 'horizontal', label: 'Horizontal (Left to Right)' }
+        ]
+      },
+      defaultValue: 'vertical',
+      bindable: true,
+      states: true,
+      classes: true,
+      hidden: content => content?.gridLayout !== 'tree',
+      /* wwEditor:start */
+      bindingValidation: {
+        type: 'string',
+        tooltip: 'Valid values: vertical | horizontal'
+      },
+      propertyHelp: 'Vertical: Root nodes at top, children below. Horizontal: Root nodes at left, children to the right'
       /* wwEditor:end */
     },
 

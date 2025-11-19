@@ -11,14 +11,14 @@
       class="menu-item"
       @click="handleAddNode(nodeType.value)"
     >
-      <span class="menu-icon">{{ nodeType.icon }}</span>
+      <i :class="nodeType.icon" class="menu-icon" />
       <span class="menu-label">Add {{ nodeType.label }}</span>
     </div>
     
     <div class="menu-divider"></div>
     
     <div class="menu-item" @click="handlePaste">
-      <span class="menu-icon">📋</span>
+      <i :class="pasteIcon" class="menu-icon" />
       <span class="menu-label">Paste</span>
     </div>
   </div>
@@ -27,6 +27,7 @@
 <script>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { getNodeTypeOptions } from '../utils/nodeTypes';
+import { ICONS } from '../utils/icons';
 
 export default {
   name: 'ContextMenu',
@@ -42,6 +43,10 @@ export default {
   },
   emits: ['add-node', 'paste', 'close'],
   setup(props, { emit }) {
+    //#region Constants
+    const pasteIcon = ICONS.duplicate;
+    //#endregion
+    
     //#region Computed
     const nodeTypes = computed(() => {
       return getNodeTypeOptions();
@@ -84,6 +89,7 @@ export default {
     return {
       nodeTypes,
       menuStyle,
+      pasteIcon,
       handleAddNode,
       handlePaste,
     };

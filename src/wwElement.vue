@@ -153,7 +153,8 @@
         :is-hovered="hoveredNodeId === node.id"
         :viewport="viewport"
         :config="nodeConfig"
-        :node-dropzone-enabled="content?.nodeDropzoneEnabled"
+        :cursor-position="cursorCanvasPosition"
+        :global-node-type="content?.globalNodeType || 'default'"
         :connection-dragging="draggingConnection !== null"
         :allow-resize="content?.allowNodeResize !== false"
         @node-mousedown="handleNodeMouseDown"
@@ -211,28 +212,28 @@
           @click="handleZoomIn"
           title="Zoom In"
         >
-          +
+          <i :class="ICONS.zoomIn" />
         </button>
         <button 
           class="control-btn"
           @click="handleZoomOut"
           title="Zoom Out"
         >
-          −
+          <i :class="ICONS.zoomOut" />
         </button>
         <button 
           class="control-btn"
           @click="handleFitView"
           title="Fit View"
         >
-          ⊡
+          <i :class="ICONS.fitView" />
         </button>
         <button 
           class="control-btn"
           @click="handleResetView"
           title="Reset View"
         >
-          ↻
+          <i :class="ICONS.reset" />
         </button>
       </div>
     </div>
@@ -263,7 +264,8 @@
     <CanvasToolbar
       v-if="content?.toolbarEnabled"
       :enabled="content?.toolbarEnabled !== false"
-      :position="content?.toolbarPosition || 'top-left'"
+      :position="content?.toolbarPosition || 'bottom-left'"
+      :mode="content?.globalNodeType || 'default'"
       @add-node="handleToolbarAddNode"
     />
     <!-- #endregion -->
@@ -318,6 +320,7 @@ import CanvasToolbar from './components/CanvasToolbar.vue';
 import ContextMenu from './components/ContextMenu.vue';
 import InputModal from './components/InputModal.vue';
 import { NODE_TYPES, createNodeData } from './utils/nodeTypes';
+import { ICONS } from './utils/icons';
 
 //#region Helper Functions
 /**
@@ -377,6 +380,7 @@ export default {
     const isPanning = ref(false);
     const panStart = ref({ x: 0, y: 0 });
     const mousePosition = ref({ x: 0, y: 0 });
+    const cursorCanvasPosition = ref({ x: 0, y: 0 }); // For handle proximity detection
     const hoveredNodeId = ref(null);
     const nodeSpacing = { horizontal: 250, vertical: 150 }; // Spacing for tree layout
     
@@ -422,6 +426,9 @@ export default {
     const calculateTreeLayout = (nodesList, edgesList) => {
       if (!nodesList?.length) return nodesList;
       
+      const direction = props.content?.treeLayoutDirection || 'vertical';
+      const isHorizontal = direction === 'horizontal';
+      
       // Find root nodes (nodes with no incoming edges)
       const targetNodeIds = new Set(edgesList?.map(e => e.target) || []);
       const rootNodes = nodesList.filter(n => !targetNodeIds.has(n.id));
@@ -466,27 +473,49 @@ export default {
         nodesByLevel[level].push(node);
       });
       
-      // Position nodes
+      // Position nodes based on direction
       const positionedNodes = [];
       Object.keys(nodesByLevel).sort((a, b) => Number(a) - Number(b)).forEach(level => {
         const nodesAtLevel = nodesByLevel[level];
         const levelNum = Number(level);
-        const totalWidth = nodesAtLevel.length * nodeSpacing.horizontal;
-        const startX = -totalWidth / 2 + nodeSpacing.horizontal / 2;
         
-        nodesAtLevel.forEach((node, index) => {
-          positionedNodes.push({
-            ...node,
-            position: {
-              x: startX + (index * nodeSpacing.horizontal),
-              y: levelNum * nodeSpacing.vertical + 100
-            },
-            data: {
-              ...node.data,
-              level: levelNum
-            }
+        if (isHorizontal) {
+          // Horizontal: Left to Right
+          const totalHeight = nodesAtLevel.length * nodeSpacing.vertical;
+          const startY = -totalHeight / 2 + nodeSpacing.vertical / 2;
+          
+          nodesAtLevel.forEach((node, index) => {
+            positionedNodes.push({
+              ...node,
+              position: {
+                x: levelNum * nodeSpacing.horizontal + 100,
+                y: startY + (index * nodeSpacing.vertical)
+              },
+              data: {
+                ...node.data,
+                level: levelNum
+              }
+            });
           });
-        });
+        } else {
+          // Vertical: Top to Bottom
+          const totalWidth = nodesAtLevel.length * nodeSpacing.horizontal;
+          const startX = -totalWidth / 2 + nodeSpacing.horizontal / 2;
+          
+          nodesAtLevel.forEach((node, index) => {
+            positionedNodes.push({
+              ...node,
+              position: {
+                x: startX + (index * nodeSpacing.horizontal),
+                y: levelNum * nodeSpacing.vertical + 100
+              },
+              data: {
+                ...node.data,
+                level: levelNum
+              }
+            });
+          });
+        }
       });
       
       return positionedNodes;
@@ -660,6 +689,7 @@ export default {
       selectedHandleColor: props.content?.selectedHandleColor,
       nodeDropzoneBackgroundColor: props.content?.nodeDropzoneBackgroundColor,
       handleProximityRadius: props.content?.handleProximityRadius,
+      globalNodeType: props.content?.globalNodeType,
     }));
 
     const edgeConfig = computed(() => ({
@@ -802,6 +832,12 @@ export default {
         const x = (event.clientX - rect.left - (viewport.value.x || 0)) / (viewport.value.zoom || 1);
         const y = (event.clientY - rect.top - (viewport.value.y || 0)) / (viewport.value.zoom || 1);
         mousePosition.value = { x, y };
+        
+        // Also update cursor position in canvas coordinates for handle proximity detection
+        cursorCanvasPosition.value = {
+          x: event.clientX - rect.left,
+          y: event.clientY - rect.top
+        };
       }
       
       // Handle panning (middle-click)
@@ -845,11 +881,20 @@ export default {
           let newX = mousePosition.value.x;
           let newY = mousePosition.value.y;
           
-          // Tree layout: constrain Y to level, snap X to grid
+          // Tree layout: constrain based on direction
           if (props.content?.gridLayout === 'tree') {
+            const direction = props.content?.treeLayoutDirection || 'vertical';
             const level = node.data?.level ?? 0;
-            newY = level * nodeSpacing.vertical + 100; // Lock Y to level
-            newX = Math.round(newX / nodeSpacing.horizontal) * nodeSpacing.horizontal; // Snap X
+            
+            if (direction === 'horizontal') {
+              // Horizontal: Lock X to level, snap Y to grid
+              newX = level * nodeSpacing.horizontal + 100;
+              newY = Math.round(newY / nodeSpacing.vertical) * nodeSpacing.vertical;
+            } else {
+              // Vertical: Lock Y to level, snap X to grid
+              newY = level * nodeSpacing.vertical + 100;
+              newX = Math.round(newX / nodeSpacing.horizontal) * nodeSpacing.horizontal;
+            }
           } else if (props.content?.snapToGrid) {
             // Free layout: snap to grid if enabled
             newX = Math.round(newX / 20) * 20;
@@ -1507,6 +1552,9 @@ export default {
       // Refs
       canvasContainer,
       
+      // Icons
+      ICONS,
+      
       // Styles
       canvasStyle,
       gridStyle,
@@ -1528,6 +1576,7 @@ export default {
       draggingNodeId,
       hoveredNodeId,
       mousePosition,
+      cursorCanvasPosition,
       selectionBox,
       contextMenuVisible,
       contextMenuPosition,
@@ -1751,15 +1800,23 @@ export default {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 18px;
   color: #333;
   transition: all 0.2s ease;
+
+  i {
+    line-height: 1;
+    transition: color 0.2s ease;
+  }
 
   &:hover {
     background: #f0f0f0;
     border-color: #007aff;
     color: #007aff;
+    
+    i {
+      color: #007aff;
+    }
   }
 
   &:active {

@@ -19,15 +19,18 @@
       :key="handle.id"
       :handle="handle"
       :node-id="node?.id"
+      :node-position="node?.position"
       :is-visible="handlesVisible"
       :config="config"
+      :viewport="viewport"
+      :cursor-position="cursorPosition"
       @handle-mousedown="onHandleMouseDown"
       @handle-mouseup="onHandleMouseUp"
     />
 
     <!-- Node Content: Type-Based Rendering -->
-    <!-- Custom Dropzone Mode -->
-    <div v-if="nodeDropzoneEnabled" class="node-dropzone-wrapper">
+    <!-- Custom Dropzone Mode: Only render for custom type nodes in custom mode -->
+    <div v-if="isCustomNodeWithDropzone" class="node-dropzone-wrapper">
       <wwLayout 
         path="nodeDropzoneContent" 
         direction="column"
@@ -44,7 +47,7 @@
           class="node-delete"
           @click.stop="handleDelete"
         >
-          ×
+          <i :class="deleteIcon" />
         </button>
       </div>
       <div v-if="nodeDescription" class="node-description">
@@ -61,7 +64,7 @@
           class="node-delete"
           @click.stop="handleDelete"
         >
-          ×
+          <i :class="deleteIcon" />
         </button>
       </div>
       <div 
@@ -81,7 +84,7 @@
           class="node-delete"
           @click.stop="handleDelete"
         >
-          ×
+          <i :class="deleteIcon" />
         </button>
       </div>
       
@@ -133,7 +136,7 @@
           class="node-delete"
           @click.stop="handleDelete"
         >
-          ×
+          <i :class="deleteIcon" />
         </button>
       </div>
       
@@ -187,6 +190,7 @@ import 'quill/dist/quill.snow.css';
 import wwHandle from './wwHandle.vue';
 import { isDarkColor } from '../utils/colorHelpers';
 import { getNodeTypeConfig, getNodeDimensions } from '../utils/nodeTypes';
+import { ICONS } from '../utils/icons';
 
 export default {
   name: 'wwNode',
@@ -219,9 +223,13 @@ export default {
       type: Object,
       default: () => ({}),
     },
-    nodeDropzoneEnabled: {
-      type: Boolean,
-      default: false,
+    cursorPosition: {
+      type: Object,
+      default: () => ({ x: 0, y: 0 }),
+    },
+    globalNodeType: {
+      type: String,
+      default: 'default',
     },
     connectionDragging: {
       type: Boolean,
@@ -257,6 +265,14 @@ export default {
     //#region Computed Properties
     const nodeType = computed(() => {
       return props.node?.type || 'default';
+    });
+
+    const isCustomNodeWithDropzone = computed(() => {
+      return props.globalNodeType === 'custom' && nodeType.value === 'custom';
+    });
+
+    const deleteIcon = computed(() => {
+      return ICONS.close;
     });
 
     const nodeStyle = computed(() => {
@@ -559,6 +575,8 @@ export default {
       quillEditorRef,
       isEditingText,
       nodeType,
+      isCustomNodeWithDropzone,
+      deleteIcon,
       nodeStyle,
       nodeLabel,
       nodeDescription,
