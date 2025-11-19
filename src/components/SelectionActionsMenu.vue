@@ -41,9 +41,9 @@
       </div>
     </template>
 
-    <!-- Hover Tooltip: Item Applicability List -->
+    <!-- Hover Tooltip: Item Applicability List (Only for Multiple Selection) -->
     <div
-      v-if="hoveredAction && showTooltip"
+      v-if="hoveredAction && showTooltip && selectedItemsList.length > 1"
       class="action-tooltip"
       :style="tooltipStyle"
     >
@@ -69,8 +69,14 @@ import { ref, computed, watch } from 'vue';
 import { isDarkColor } from '../utils/colorHelpers';
 import { ICONS } from '../utils/icons';
 
+// CRITICAL: Import wwLayout for action button dropzones
+const wwLayout = window.wwLib?.wwLayout;
+
 export default {
   name: 'SelectionActionsMenu',
+  components: {
+    wwLayout, // CRITICAL: Register wwLayout component for action dropzones
+  },
   props: {
     // Selection data
     selectedNodes: {

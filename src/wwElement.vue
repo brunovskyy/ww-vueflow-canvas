@@ -322,6 +322,9 @@ import InputModal from './components/InputModal.vue';
 import { NODE_TYPES, createNodeData } from './utils/nodeTypes';
 import { ICONS } from './utils/icons';
 
+// CRITICAL: Import wwLayout for dropzone functionality
+const wwLayout = window.wwLib?.wwLayout;
+
 //#region Helper Functions
 /**
  * Generate a UUID for nodes and edges
@@ -339,6 +342,7 @@ export default {
     CanvasToolbar,
     ContextMenu,
     InputModal,
+    wwLayout, // CRITICAL: Register wwLayout component for dropzone
   },
   props: {
     uid: { type: String, required: true },

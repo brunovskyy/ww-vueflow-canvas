@@ -188,3 +188,48 @@ export const getNodeTypeOptions = () => {
     icon: config.icon,
   }));
 };
+
+/**
+ * Get standardized handle configuration for a node
+ * All node types use the same handle configuration for consistency
+ */
+export const getStandardHandles = () => {
+  return [
+    { id: 'top', type: 'target', position: 'top' },
+    { id: 'bottom', type: 'source', position: 'bottom' },
+    { id: 'left', type: 'target', position: 'left' },
+    { id: 'right', type: 'source', position: 'right' },
+  ];
+};
+
+/**
+ * Get handles for a specific node
+ * Checks node data for custom handles, otherwise returns standard configuration
+ */
+export const getNodeHandles = (node, config = {}) => {
+  const connectable = config?.connectableNodes !== false;
+  
+  if (!connectable) return [];
+  
+  // Custom handles from node data (advanced use case)
+  if (node?.data?.handles && Array.isArray(node.data.handles)) {
+    return node.data.handles;
+  }
+  
+  // Standard handles for all node types
+  return getStandardHandles();
+};
+
+/**
+ * Check if a handle type and position combination is valid
+ */
+export const isValidHandle = (handle) => {
+  if (!handle || !handle.id || !handle.type || !handle.position) {
+    return false;
+  }
+  
+  const validTypes = ['source', 'target'];
+  const validPositions = ['top', 'bottom', 'left', 'right'];
+  
+  return validTypes.includes(handle.type) && validPositions.includes(handle.position);
+};

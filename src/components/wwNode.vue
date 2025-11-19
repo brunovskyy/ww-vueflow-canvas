@@ -20,6 +20,7 @@
       :handle="handle"
       :node-id="node?.id"
       :node-position="node?.position"
+      :node-size="nodeDimensions"
       :is-visible="handlesVisible"
       :config="config"
       :viewport="viewport"
@@ -189,13 +190,17 @@ import Quill from 'quill';
 import 'quill/dist/quill.snow.css';
 import wwHandle from './wwHandle.vue';
 import { isDarkColor } from '../utils/colorHelpers';
-import { getNodeTypeConfig, getNodeDimensions } from '../utils/nodeTypes';
+import { getNodeTypeConfig, getNodeDimensions, getNodeHandles } from '../utils/nodeTypes';
 import { ICONS } from '../utils/icons';
+
+// CRITICAL: Import wwLayout for node dropzone functionality
+const wwLayout = window.wwLib?.wwLayout;
 
 export default {
   name: 'wwNode',
   components: {
     wwHandle,
+    wwLayout, // CRITICAL: Register wwLayout component for node dropzone
   },
   props: {
     node: {
@@ -315,26 +320,18 @@ export default {
     });
 
     const nodeHandles = computed(() => {
-      const connectable = props.config?.connectableNodes !== false;
-      
-      if (!connectable) return [];
-      
-      // Custom handles from node data
-      if (props.node?.data?.handles && Array.isArray(props.node.data.handles)) {
-        return props.node.data.handles;
-      }
-      
-      // Default handles configuration
-      return [
-        { id: 'top', type: 'target', position: 'top' },
-        { id: 'bottom', type: 'source', position: 'bottom' },
-        { id: 'left', type: 'target', position: 'left' },
-        { id: 'right', type: 'source', position: 'right' },
-      ];
+      // Use standardized handle configuration from utilities
+      return getNodeHandles(props.node, props.config);
+    });
+
+    const nodeDimensions = computed(() => {
+      return getNodeDimensions(props.node);
     });
 
     const handlesVisible = computed(() => {
-      return props.isHovered || props.connectionDragging || props.isSelected;
+      // Only show handles during connection dragging or when node is selected
+      // Proximity detection is handled by wwHandle component itself
+      return props.connectionDragging || props.isSelected;
     });
 
     /**
@@ -347,13 +344,12 @@ export default {
 
     /**
      * Check if node is resizable
+     * CRITICAL: Only text, media, and web nodes should be resizable
      */
     const isResizable = computed(() => {
-      return props.allowResize && (
-        nodeType.value === 'text' || 
-        nodeType.value === 'media' || 
-        nodeType.value === 'web'
-      );
+      if (!props.allowResize) return false;
+      const type = nodeType.value;
+      return type === 'text' || type === 'media' || type === 'web';
     });
 
     const resizeHandles = ['nw', 'ne', 'sw', 'se', 'n', 'e', 's', 'w'];
@@ -362,15 +358,15 @@ export default {
     //#region Text Editor (Quill)
     const initQuillEditor = () => {
       if (nodeType.value !== 'text' || !quillEditorRef.value) return;
-
-      // Destroy existing instance
+      
+      // CRITICAL: Prevent duplicate initialization
       if (quillInstance.value) {
-        quillInstance.value = null;
+        return; // Already initialized
       }
 
-      // Initialize Quill
+      // Initialize Quill with floating toolbar configuration
       nextTick(() => {
-        if (!quillEditorRef.value) return;
+        if (!quillEditorRef.value || quillInstance.value) return;
 
         quillInstance.value = new Quill(quillEditorRef.value, {
           theme: 'snow',
@@ -384,7 +380,7 @@ export default {
             ]
           },
           placeholder: 'Start typing...',
-          readOnly: !isEditingText.value,
+          readOnly: true, // Start as read-only
         });
 
         // Set initial content
@@ -431,7 +427,8 @@ export default {
 
     //#region Event Handlers
     const handleMouseDown = (event) => {
-      if (isEditingText.value) return;
+      // Don't allow node dragging while editing text or resizing
+      if (isEditingText.value || isResizing.value) return;
       
       emit('node-mousedown', {
         event,
@@ -491,12 +488,16 @@ export default {
       
       isResizing.value = true;
       
-      const rect = event.target.closest('.canvas-node').getBoundingClientRect();
+      const nodeElement = event.target.closest('.canvas-node');
+      const currentWidth = parseFloat(props.node?.data?.width) || nodeElement.offsetWidth;
+      const currentHeight = parseFloat(props.node?.data?.height) || nodeElement.offsetHeight;
+      
       resizeStart.value = {
         x: event.clientX,
         y: event.clientY,
-        width: rect.width,
-        height: rect.height,
+        width: currentWidth,
+        height: currentHeight,
+        handle: handle,
       };
       
       document.addEventListener('mousemove', handleResizeMove);
@@ -506,30 +507,69 @@ export default {
     const handleResizeMove = (event) => {
       if (!isResizing.value) return;
       
-      const dx = event.clientX - resizeStart.value.x;
-      const dy = event.clientY - resizeStart.value.y;
+      event.preventDefault();
+      event.stopPropagation();
       
-      const newWidth = Math.max(200, resizeStart.value.width + dx);
-      const newHeight = Math.max(100, resizeStart.value.height + dy);
+      const dx = (event.clientX - resizeStart.value.x) / (props.viewport?.zoom || 1);
+      const dy = (event.clientY - resizeStart.value.y) / (props.viewport?.zoom || 1);
       
-      emit('resize-node', {
+      const handle = resizeStart.value.handle;
+      let newWidth = resizeStart.value.width;
+      let newHeight = resizeStart.value.height;
+      
+      // Minimum dimensions based on node type
+      const minWidth = nodeType.value === 'text' ? 200 : 120;
+      const minHeight = nodeType.value === 'text' ? 100 : 60;
+      
+      // Handle width changes
+      if (handle.includes('e')) {
+        newWidth = Math.max(minWidth, resizeStart.value.width + dx);
+      } else if (handle.includes('w')) {
+        newWidth = Math.max(minWidth, resizeStart.value.width - dx);
+      }
+      
+      // Handle height changes
+      if (handle.includes('s')) {
+        newHeight = Math.max(minHeight, resizeStart.value.height + dy);
+      } else if (handle.includes('n')) {
+        newHeight = Math.max(minHeight, resizeStart.value.height - dy);
+      }
+      
+      // Real-time update for immediate visual feedback
+      emit('update-node', {
         nodeId: props.node?.id,
-        width: `${newWidth}px`,
-        height: `${newHeight}px`,
+        data: {
+          width: `${Math.round(newWidth)}px`,
+          height: `${Math.round(newHeight)}px`,
+        }
       });
     };
 
-    const handleResizeEnd = () => {
+    const handleResizeEnd = (event) => {
+      if (!isResizing.value) return;
+      
+      event?.preventDefault();
+      event?.stopPropagation();
+      
       isResizing.value = false;
+      
+      // Emit final resize event
+      emit('resize-node', {
+        nodeId: props.node?.id,
+        width: props.node?.data?.width,
+        height: props.node?.data?.height,
+      });
+      
+      // Clean up event listeners
       document.removeEventListener('mousemove', handleResizeMove);
       document.removeEventListener('mouseup', handleResizeEnd);
     };
     //#endregion
 
     //#region Watchers
-    // Initialize Quill when node becomes text type
+    // Initialize Quill when node becomes text type (ONLY ONCE)
     watch([() => props.node?.type, quillEditorRef], ([newType]) => {
-      if (newType === 'text') {
+      if (newType === 'text' && !quillInstance.value) {
         nextTick(() => {
           initQuillEditor();
         });
@@ -556,16 +596,27 @@ export default {
 
     //#region Lifecycle
     onMounted(() => {
-      if (nodeType.value === 'text') {
+      if (nodeType.value === 'text' && !quillInstance.value) {
         initQuillEditor();
       }
     });
 
     onUnmounted(() => {
+      // Properly destroy Quill instance
       if (quillInstance.value) {
+        try {
+          quillInstance.value.off('text-change');
+          const toolbar = quillEditorRef.value?.querySelector('.ql-toolbar');
+          if (toolbar) {
+            toolbar.remove();
+          }
+        } catch (e) {
+          // Ignore cleanup errors
+        }
         quillInstance.value = null;
       }
       
+      // Clean up resize listeners
       document.removeEventListener('mousemove', handleResizeMove);
       document.removeEventListener('mouseup', handleResizeEnd);
     });
@@ -585,6 +636,7 @@ export default {
       mediaType,
       webUrl,
       nodeHandles,
+      nodeDimensions,
       handlesVisible,
       isDarkTheme,
       isResizable,
@@ -743,12 +795,19 @@ export default {
 
 //#region Text Node Styles
 .node-content-text {
+  overflow: hidden;
+  position: relative;
+  
   .text-editor-container {
     flex: 1;
     min-height: 60px;
+    max-height: 100%;
     border: 1px solid transparent;
     border-radius: 4px;
     transition: border-color 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     
     &:hover {
       border-color: #e0e0e0;
@@ -757,27 +816,51 @@ export default {
     :deep(.ql-container) {
       border: none;
       font-size: 13px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
     }
     
     :deep(.ql-editor) {
       padding: 8px;
       min-height: 60px;
-      max-height: 300px;
+      flex: 1;
       overflow-y: auto;
+      overflow-x: hidden;
+      word-wrap: break-word;
       
       &.ql-blank::before {
         font-style: italic;
         color: #999;
       }
+      
+      p, h1, h2, h3 {
+        margin: 0 0 8px 0;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+      }
     }
     
+    // CRITICAL: Only show ONE toolbar, hide when not editing
     :deep(.ql-toolbar) {
       border: none;
       border-bottom: 1px solid #e0e0e0;
       padding: 4px;
       background: #fafafa;
       border-radius: 4px 4px 0 0;
+      flex-shrink: 0;
+      opacity: 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: opacity 0.2s ease, max-height 0.2s ease;
     }
+  }
+  
+  // Show toolbar only when node is being edited
+  .canvas-node.node-selected .text-editor-container :deep(.ql-toolbar) {
+    opacity: 1;
+    max-height: 50px;
   }
   
   .edit-hint {

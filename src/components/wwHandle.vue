@@ -30,6 +30,10 @@ export default {
       type: Object,
       default: () => ({ x: 0, y: 0 }),
     },
+    nodeSize: {
+      type: Object,
+      default: () => ({ width: 200, height: 100 }),
+    },
     isVisible: {
       type: Boolean,
       default: false,
@@ -72,22 +76,30 @@ export default {
       const nodeScreenX = props.nodePosition.x * zoom + viewportX;
       const nodeScreenY = props.nodePosition.y * zoom + viewportY;
       
-      // Handle offset from node center based on position
+      // Parse node dimensions
+      const nodeWidth = typeof props.nodeSize.width === 'string' 
+        ? parseFloat(props.nodeSize.width) 
+        : props.nodeSize.width;
+      const nodeHeight = typeof props.nodeSize.height === 'string'
+        ? parseFloat(props.nodeSize.height)
+        : props.nodeSize.height;
+      
+      // Handle offset from node center based on position (using actual node size)
       let handleOffsetX = 0;
       let handleOffsetY = 0;
       
       switch (props.handle?.position) {
         case 'top':
-          handleOffsetY = -30 * zoom;
+          handleOffsetY = -(nodeHeight / 2) * zoom;
           break;
         case 'bottom':
-          handleOffsetY = 30 * zoom;
+          handleOffsetY = (nodeHeight / 2) * zoom;
           break;
         case 'left':
-          handleOffsetX = -60 * zoom;
+          handleOffsetX = -(nodeWidth / 2) * zoom;
           break;
         case 'right':
-          handleOffsetX = 60 * zoom;
+          handleOffsetX = (nodeWidth / 2) * zoom;
           break;
       }
       
