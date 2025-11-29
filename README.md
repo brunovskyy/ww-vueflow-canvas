@@ -13,14 +13,14 @@ A professional, VueFlow-style node-based canvas component for WeWeb. Build inter
 - **Full Reactivity**: Dynamic data binding with isolated component state
 - **Touch-Optimized**: Responsive design for desktop and mobile
 
-## 📦 Installation
+## Installation
 
 Install dependencies:
 ```bash
 npm i
 ```
 
-## 🚀 Development
+## Development
 
 Serve locally:
 ```bash
@@ -29,7 +29,7 @@ npm run serve --port=8080
 
 Then add the custom element in WeWeb editor's developer popup.
 
-## 🏗️ Build
+## Build
 
 Check for build errors before release:
 ```bash
@@ -38,7 +38,7 @@ npm run build --name=ww-canvas-vueflow
 
 ---
 
-## 📐 Component Architecture
+## Component Architecture
 
 ### **Modular Structure**
 
@@ -83,11 +83,11 @@ See `IMPLEMENTATION_SUMMARY.md` for detailed architecture documentation.
 
 ---
 
-## 🆕 Recent Updates
+## Recent Updates
 
 ### **Version 2.0 - Enhanced Features (Latest)**
 
-#### **1. Global Node Type System** 🎨
+#### **1. Global Node Type System**
 Replaced `nodeDropzoneEnabled` boolean with `globalNodeType` TextSelect property:
 
 - **`default` mode**: Full toolbar with all node type buttons (Flow Node, Text Note, Media, Web, Custom)
@@ -105,7 +105,7 @@ globalNodeType: 'custom'   // All nodes are custom type with dropzone
 globalNodeType: 'default'  // Standard nodes without forced dropzone
 ```
 
-#### **2. Handle Proximity Detection** 🎯
+#### **2. Handle Proximity Detection**
 Connection handles now appear based on:
 - **Hover**: When hovering over the node (existing behavior)
 - **Proximity**: When cursor is within `handleProximityRadius` distance from handle position
@@ -120,7 +120,7 @@ Connection handles now appear based on:
 - Better UX for dense canvas layouts
 - Configurable sensitivity for different use cases
 
-#### **3. Tree Layout Direction** 📐
+#### **3. Tree Layout Direction**
 Added `treeLayoutDirection` property for hierarchical layouts:
 
 - **`vertical`**: Traditional top-to-bottom tree (default)
@@ -138,7 +138,7 @@ layoutMode: 'tree'              // Enable tree layout
 treeLayoutDirection: 'horizontal'  // Left-to-right positioning
 ```
 
-#### **4. Phosphor Icon System** 🎨
+#### **4. Phosphor Icon System**
 Centralized icon management using Phosphor Icons library:
 
 **Implementation:**
@@ -158,7 +158,7 @@ Centralized icon management using Phosphor Icons library:
 - Consistent visual language
 - Future-ready for theme customization
 
-#### **5. Improved Property Tooltips** 📝
+#### **5. Improved Property Tooltips**
 Rewrote 15+ property descriptions in `ww-config.js`:
 
 **Before:**
